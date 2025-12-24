@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Rust
+/src-tauri/target/
+**/*.rs.bk
+
+# Database (Layer 3 Cache)
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/

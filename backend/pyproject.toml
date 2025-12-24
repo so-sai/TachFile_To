@@ -1,0 +1,7 @@
+[project]
+name = "tachfileto-backend"
+version = "0.1.0"
+description = "Python worker for TachFileTo"
+dependencies = [
+    "docling",
+]
