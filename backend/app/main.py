@@ -1,326 +1,234 @@
-#!/usr/bin/env python3
 """
-TachFileTo Python Worker - Heavy Computation Engine
-Communicates via stdin/stdout JSON Lines protocol
+TachFileTo Python Worker - Main Entry Point
+IPC Protocol v1.0 Compliant
+"""
 
-Based on backend_worker_v1.md specification.
-"""
 import sys
 import json
-import asyncio
-import signal
+import logging
+import traceback
 import os
 import time
-import traceback
-from typing import Optional, Dict, Any
+from typing import Any
 
-# Add parent to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+# Import protocol definitions
 from app.protocol import (
-    WorkerRequest,
-    WorkerResponse,
-    ReadyMessage,
-    CommandType,
-    ErrorType,
+    IpcMessage, MessageType, 
+    ExtractEvidencePayload, ParseTablePayload,
+    create_message, create_error_message, create_success_message,
+    ErrorCodes, CacheHit
 )
-from app.engine.memory_monitor import init_watchdog, get_watchdog
+from app.engine.extractor import EvidenceExtractor  # Defines mock if needed, but we override
+
+# Configure Logging: CRITICAL - Level INFO, Stream STDERR
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format='[PY-WORKER] %(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("worker")
 
 
-# Version of this worker
-VERSION = "0.1.0"
+def main():
+    """Main worker loop - reads from stdin, writes to stdout"""
+    logger.info("=" * 60)
+    logger.info("🔥 Python Worker Process Started")
+    logger.info(f"   PID: {os.getpid()}")
+    logger.info(f"   Protocol Version: 1.0.0")
+    logger.info("=" * 60)
 
-
-class PythonWorker:
-    """
-    Main worker class that handles IPC with Rust.
-    
-    Lifecycle:
-    1. Initialize (load heavy models)
-    2. Send ready signal
-    3. Main loop: read stdin -> process -> write stdout
-    4. Shutdown on signal
-    """
-    
-    def __init__(self):
-        self.running = True
-        self.request_count = 0
-        self.error_count = 0
-        self.start_time = time.time()
-        self.worker_id = f"worker_{os.getpid()}"
-        
-        # Will be initialized lazily
-        self._extractor = None
-    
-    def setup_signal_handlers(self):
-        """Handle graceful shutdown"""
-        def signal_handler(sig, frame):
-            print(f"[Worker] Received signal {sig}, shutting down...", 
-                  file=sys.stderr)
-            self.running = False
-        
-        # Windows uses different signals
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
-        if sys.platform == "win32":
-            try:
-                signal.signal(signal.SIGBREAK, signal_handler)
-            except (AttributeError, ValueError):
-                pass
-    
-    async def initialize(self):
-        """Initialize heavy components once"""
-        print("[Worker] Initializing...", file=sys.stderr)
-        
-        # Start memory watchdog
-        ram_limit = int(os.environ.get("TACH_WORKER_RAM_LIMIT_MB", "1024"))
-        init_watchdog(
-            soft_limit_mb=ram_limit,
-            hard_limit_mb=int(ram_limit * 1.5)
-        )
-        
-        # TODO: Initialize Docling here (expensive operation)
-        # self._extractor = EvidenceExtractor()
-        # await self._extractor.initialize()
-        
-        print("[Worker] Initialization complete", file=sys.stderr)
-    
-    def send_ready(self):
-        """Send ready signal to Rust parent process"""
-        # Detect capabilities
-        capabilities = ["basic"]
-        
-        try:
-            import docling
-            capabilities.append("docling")
-        except ImportError:
-            pass
-        
-        try:
-            import psutil
-            capabilities.append("memory_monitor")
-        except ImportError:
-            pass
-        
-        ready_msg = ReadyMessage(
-            version=VERSION,
-            pid=os.getpid(),
-            capabilities=capabilities,
-            worker_id=self.worker_id
-        )
-        
-        self._write_message(ready_msg.model_dump())
-        print(f"[Worker] Ready signal sent (capabilities: {capabilities})", 
-              file=sys.stderr)
-    
-    def _write_message(self, data: Dict[str, Any]):
-        """Write JSON line to stdout (IPC channel to Rust)"""
-        try:
-            json_line = json.dumps(data, ensure_ascii=False, default=str)
-            sys.stdout.write(json_line + "\n")
-            sys.stdout.flush()
-        except Exception as e:
-            print(f"[Worker] Failed to write message: {e}", file=sys.stderr)
-    
-    async def handle_command(self, request: WorkerRequest) -> WorkerResponse:
-        """Route command to appropriate handler"""
-        start_time = time.time()
-        
-        try:
-            if request.cmd == CommandType.HEALTH_CHECK:
-                result = await self._handle_health_check()
-            
-            elif request.cmd == CommandType.FORCE_GC:
-                result = await self._handle_force_gc()
-            
-            elif request.cmd == CommandType.EXTRACT_EVIDENCE:
-                result = await self._handle_extract_evidence(request.payload)
-            
-            elif request.cmd == CommandType.SHUTDOWN:
-                self.running = False
-                result = {"status": "shutting_down"}
-            
-            else:
-                raise ValueError(f"Unknown command: {request.cmd}")
-            
-            duration_ms = (time.time() - start_time) * 1000
-            
-            # Get memory stats if available
-            peak_ram_mb = None
-            watchdog = get_watchdog()
-            if watchdog:
-                peak_ram_mb = watchdog.get_stats().get("current_memory_mb")
-            
-            return WorkerResponse.success(
-                req_id=request.id,
-                data=result,
-                duration_ms=duration_ms,
-                peak_ram_mb=peak_ram_mb
-            )
-            
-        except asyncio.TimeoutError:
-            self.error_count += 1
-            return WorkerResponse.error(
-                req_id=request.id,
-                error_type=ErrorType.TIMEOUT_EXCEEDED,
-                message="Operation timed out"
-            )
-        
-        except FileNotFoundError as e:
-            self.error_count += 1
-            return WorkerResponse.error(
-                req_id=request.id,
-                error_type=ErrorType.FILE_NOT_FOUND,
-                message=str(e)
-            )
-        
-        except Exception as e:
-            self.error_count += 1
-            tb = traceback.format_exc()
-            print(f"[Worker] Error handling command: {e}\n{tb}", file=sys.stderr)
-            
-            return WorkerResponse.error(
-                req_id=request.id,
-                error_type=ErrorType.UNKNOWN,
-                message=str(e),
-                traceback=tb[-500:]  # Last 500 chars of traceback
-            )
-    
-    async def _handle_health_check(self) -> dict:
-        """Handle health check command"""
-        watchdog = get_watchdog()
-        watchdog_stats = watchdog.get_stats() if watchdog else {}
-        
-        return {
-            "status": "healthy",
-            "worker_id": self.worker_id,
-            "uptime_seconds": time.time() - self.start_time,
-            "requests_processed": self.request_count,
-            "error_count": self.error_count,
-            "memory_mb": watchdog_stats.get("current_memory_mb", 0),
-            "peak_memory_mb": watchdog_stats.get("peak_memory_mb", 0),
-        }
-    
-    async def _handle_force_gc(self) -> dict:
-        """Force garbage collection"""
-        import gc
-        
-        before = get_watchdog().get_memory_usage_mb() if get_watchdog() else 0
-        collected = gc.collect(generation=2)
-        after = get_watchdog().get_memory_usage_mb() if get_watchdog() else 0
-        
-        return {
-            "collected_objects": collected,
-            "memory_before_mb": round(before, 1),
-            "memory_after_mb": round(after, 1),
-            "freed_mb": round(before - after, 1)
-        }
-    
-    async def _handle_extract_evidence(self, payload: dict) -> dict:
-        """Extract evidence from PDF - PLACEHOLDER"""
-        # TODO: Implement actual Docling extraction
-        # This is a placeholder that returns dummy data
-        
-        file_path = payload.get("file_path", "")
-        page_index = payload.get("page_index", 0)
-        bbox = payload.get("bbox", [0, 0, 100, 100])
-        dpi = payload.get("dpi", 150)
-        
-        print(f"[Worker] Extract evidence: {file_path} page={page_index} "
-              f"bbox={bbox} dpi={dpi}", file=sys.stderr)
-        
-        # Check if file exists
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-        
-        # TODO: Replace with actual extraction
-        # For now, return placeholder
-        return {
-            "base64": "",  # Empty for now
-            "width": 100,
-            "height": 100,
-            "mime_type": "image/jpeg",
-            "placeholder": True
-        }
-    
-    async def process_line(self, line: str):
-        """Process a single line from stdin"""
-        if not line.strip():
-            return
-        
-        try:
-            raw_data = json.loads(line.strip())
-            request = WorkerRequest(**raw_data)
-            
-            response = await self.handle_command(request)
-            self._write_message(response.model_dump())
-            self.request_count += 1
-            
-        except json.JSONDecodeError as e:
-            print(f"[Worker] Invalid JSON: {e}", file=sys.stderr)
-            self._write_message({
-                "req_id": "unknown",
-                "status": "error",
-                "error": {
-                    "type": "parsing_failed",
-                    "message": f"Invalid JSON: {e}"
-                }
-            })
-    
-    async def run_loop(self):
-        """Main event loop - read from stdin, process, write to stdout"""
-        loop = asyncio.get_event_loop()
-        
-        print("[Worker] Starting main loop...", file=sys.stderr)
-        
-        while self.running:
-            try:
-                # Read line with timeout
-                try:
-                    line = await asyncio.wait_for(
-                        loop.run_in_executor(None, sys.stdin.readline),
-                        timeout=0.5
-                    )
-                except asyncio.TimeoutError:
-                    continue
-                
-                if line:
-                    await self.process_line(line)
-                elif line == "":
-                    # EOF - parent closed pipe
-                    print("[Worker] EOF detected, shutting down", file=sys.stderr)
-                    self.running = False
-                
-            except Exception as e:
-                print(f"[Worker] Error in main loop: {e}", file=sys.stderr)
-                await asyncio.sleep(0.01)
-    
-    async def run(self):
-        """Main entry point"""
-        self.setup_signal_handlers()
-        await self.initialize()
-        self.send_ready()
-        await self.run_loop()
-
-
-async def main():
-    """Entry point"""
-    worker = PythonWorker()
-    
+    # 1. Initialize Engine (Real Implementation)
     try:
-        await worker.run()
-    except KeyboardInterrupt:
-        print("[Worker] Keyboard interrupt", file=sys.stderr)
-    finally:
-        # Cleanup
-        watchdog = get_watchdog()
-        if watchdog:
-            watchdog.stop()
+        from app.engine.evidence_extractor import RealEvidenceExtractor
+        from app.engine.cache_manager import EvidenceCache
         
-        print(f"[Worker] Shutdown complete. Processed {worker.request_count} requests, "
-              f"{worker.error_count} errors", file=sys.stderr)
+        extractor = RealEvidenceExtractor()
+        cache_manager = EvidenceCache()  # Defaults to data/evidence_cache.db
+        logger.info("✅ Engine & Cache initialized (Real + PyMuPDF + SQLite)")
+    except Exception as e:
+        logger.critical(f"❌ Failed to initialize Engine: {e}")
+        logger.critical(traceback.format_exc())
+        sys.exit(1)
+
+    # 2. Main Event Loop
+    logger.info("📡 Listening for commands on stdin...")
+    
+    while True:
+        try:
+            # Read one line from stdin (blocking)
+            line = sys.stdin.readline()
+            
+            # Check for EOF (stdin closed by parent process)
+            if not line:
+                logger.info("📪 Stdin closed (EOF). Worker exiting gracefully.")
+                extractor.close()
+                break
+            
+            # Parse JSON envelope
+            try:
+                raw_msg = json.loads(line)
+                msg = IpcMessage(**raw_msg)
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Invalid JSON received: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"❌ Protocol validation error: {e}")
+                continue
+
+            logger.info(f"📨 Received: {msg.type} (msg_id: {msg.msg_id})")
+
+            # 3. Route message to appropriate handler
+            response = None
+            
+            try:
+                if msg.type == MessageType.CMD_HANDSHAKE:
+                    response = handle_handshake(msg)
+                
+                elif msg.type == MessageType.CMD_EXTRACT_EVIDENCE:
+                    response = handle_extract_evidence(msg, extractor, cache_manager)
+                
+                elif msg.type == MessageType.CMD_PARSE_TABLE:
+                     logger.warning("CMD_PARSE_TABLE not fully implemented yet")
+                     response = create_error_message(msg.msg_id, ErrorCodes.E_PROC_001, "Table parsing not implemented")
+                
+                elif msg.type == MessageType.CMD_SHUTDOWN:
+                    logger.info("🛑 Shutdown command received")
+                    extractor.close()
+                    response = create_message(MessageType.RES_ACK, {"status": "shutting_down"})
+                    send_response(response)
+                    break
+                
+                elif msg.type == MessageType.CMD_PING:
+                    response = create_message(MessageType.RES_PONG, {})
+                
+                else:
+                     logger.warning(f"Unknown command type: {msg.type}")
+
+            except Exception as e:
+                logger.error(f"❌ Processing error: {e}")
+                logger.error(traceback.format_exc())
+                
+                response = create_error_message(
+                    request_id=msg.msg_id,
+                    error_code=ErrorCodes.E_SYS_001,
+                    message=str(e),
+                    details={"traceback": traceback.format_exc()}
+                )
+
+            # 4. Send response via stdout
+            if response:
+                send_response(response)
+
+        except KeyboardInterrupt:
+            logger.info("⚠️ Worker interrupted by user (Ctrl+C)")
+            break
+        
+        except Exception as e:
+            logger.critical(f"💥 Critical loop error: {e}")
+            logger.critical(traceback.format_exc())
+            break
+
+    logger.info("👋 Worker shutdown complete")
+
+
+def handle_handshake(msg: IpcMessage) -> IpcMessage:
+    """Handle handshake request"""
+    import sys
+    
+    payload = {
+        "worker_pid": os.getpid(),
+        "docling_version": "2.0.0-real",
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "capabilities_supported": ["ocr", "table_extraction", "evidence_extraction"],
+        "max_memory_mb": 1536,
+        "status": "ready"
+    }
+    
+    logger.info(f"✅ Handshake successful: PID {payload['worker_pid']}")
+    return create_message(MessageType.RES_HANDSHAKE, payload)
+
+
+def handle_extract_evidence(msg: IpcMessage, extractor: Any, cache: Any) -> IpcMessage:
+    """Handle evidence extraction request with Caching"""
+    import base64
+    import time
+    
+    # Parse payload
+    payload = ExtractEvidencePayload(**msg.payload)
+    
+    logger.info(f"🖼️  Extracting evidence from: {payload.file_path}")
+    
+    start_time = time.time()
+    
+    # 1. Generate Cache Key
+    bbox_tuple = (payload.bbox.x, payload.bbox.y, payload.bbox.width, payload.bbox.height)
+    cache_key = cache.generate_key(payload.file_path, payload.page_index, bbox_tuple, payload.dpi)
+    
+    # 2. Check Cache
+    cache_status = CacheHit.MISS
+    cached = cache.get(cache_key)
+    
+    b64_data = ""
+    dims = (0, 0)
+    fmt = payload.output_format or "jpeg"
+    
+    if cached:
+        image_bytes, cached_dims, cached_fmt = cached
+        b64_data = base64.b64encode(image_bytes).decode('utf-8')
+        dims = cached_dims
+        cache_status = CacheHit.DISK # SQLite is disk cache
+        logger.info("   👉 Cache HIT (Disk)")
+    else:
+        logger.info("   👉 Cache MISS - Rendering...")
+        # 3. Extract Real
+        try:
+            b64_data, dims = extractor.extract_with_fitz(
+                file_path=payload.file_path,
+                page_index=payload.page_index,
+                bbox=bbox_tuple,
+                dpi=payload.dpi,
+                format=fmt,
+                quality=payload.quality or 85
+            )
+            
+            # 4. Save to Cache
+            img_bytes = base64.b64decode(b64_data)
+            cache.put(cache_key, payload.file_path, payload.page_index, bbox_tuple, 
+                      img_bytes, dims, payload.dpi, fmt)
+            
+        except Exception as e:
+             logger.error(f"Extraction failed: {e}")
+             raise e
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    
+    # Add metadata
+    metadata = {
+        "extraction_time_ms": duration_ms,
+        "cache_status": cache_status
+    }
+    
+    return create_success_message(
+        request_id=msg.msg_id,
+        data={
+            "image_base64": b64_data,
+            "dimensions": list(dims),
+            "format": fmt
+        },
+        metadata=metadata
+    )
+
+
+def send_response(msg: IpcMessage):
+    """Send IPC message to stdout"""
+    try:
+        json_str = msg.to_json()
+        sys.stdout.write(json_str + "\n")
+        sys.stdout.flush()
+        logger.info(f"📤 Sent: {msg.type}")
+    except Exception as e:
+        logger.error(f"❌ Failed to send response: {e}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

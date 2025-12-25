@@ -1,175 +1,166 @@
 """
-Protocol definitions for Rust-Python IPC
-Matches exactly the JSON schema defined in backend_worker_v1.md
-
-This is the SOURCE OF TRUTH for Python side.
-Any changes here must be reflected in:
-- src-tauri/src/ipc/protocol.rs (Rust)
-- src/types/ipc.ts (TypeScript)
+IPC Protocol v1.0 - Python Implementation
+Matches specification in IPC-001
 """
-from typing import Dict, Any, Optional, List, Tuple
-from enum import Enum
+
 from pydantic import BaseModel, Field
+from typing import Optional, Any, List, Tuple
+from enum import Enum
+import time
 import uuid
-import os
 
 
-# ==================== ENUMS ====================
-
-class CommandType(str, Enum):
-    """Available commands that Rust can send to Python"""
-    EXTRACT_EVIDENCE = "extract_evidence"
-    PARSE_TABLES = "parse_tables"
-    HEALTH_CHECK = "health_check"
-    FORCE_GC = "force_gc"
-    SHUTDOWN = "shutdown"
-
-
-class Priority(str, Enum):
-    """Request priority levels"""
-    IMMEDIATE = "immediate"   # User clicked, needs <500ms
-    NORMAL = "normal"         # User hovered, needs <2s
-    BACKGROUND = "background" # Prefetch, can wait
+class MessageType(str, Enum):
+    CMD_HANDSHAKE = "CMD_HANDSHAKE"
+    RES_HANDSHAKE = "RES_HANDSHAKE"
+    CMD_PING = "CMD_PING"
+    RES_PONG = "RES_PONG"
+    CMD_EXTRACT_EVIDENCE = "CMD_EXTRACT_EVIDENCE"
+    CMD_PARSE_TABLE = "CMD_PARSE_TABLE"
+    RES_SUCCESS = "RES_SUCCESS"
+    RES_PROGRESS = "RES_PROGRESS"
+    RES_ERROR = "RES_ERROR"
+    CMD_SHUTDOWN = "CMD_SHUTDOWN"
+    RES_ACK = "RES_ACK"
 
 
-class LifecycleEvent(str, Enum):
-    """Worker lifecycle events"""
-    READY = "ready"
-    OOM_WARNING = "oom_warning"
-    SHUTTING_DOWN = "shutting_down"
+class CacheHit(str, Enum):
+    MEMORY = "memory"
+    DISK = "disk"
+    MISS = "miss"
 
 
-class ErrorType(str, Enum):
-    """Error types matching Rust ErrorType enum"""
-    FILE_NOT_FOUND = "file_not_found"
-    PAGE_OUT_OF_RANGE = "page_out_of_range"
-    MEMORY_EXHAUSTED = "memory_exhausted"
-    TIMEOUT_EXCEEDED = "timeout_exceeded"
-    PARSING_FAILED = "parsing_failed"
-    UNKNOWN = "unknown"
+class ErrorSeverity(str, Enum):
+    FATAL = "fatal"
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
 
 
-# ==================== REQUEST MODELS ====================
+class IpcMessage(BaseModel):
+    """Universal message envelope"""
+    protocol_v: str = "1.0.0"
+    msg_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: int = Field(default_factory=lambda: int(time.time() * 1000))
+    type: MessageType
+    payload: Any
 
-class EvidencePayload(BaseModel):
-    """Payload for extract_evidence command"""
-    file_path: str
-    page_index: int = Field(..., ge=0, description="0-based page index")
-    bbox: Tuple[float, float, float, float] = Field(
-        ..., 
-        description="Bounding box [x, y, width, height] in PDF coords"
-    )
-    dpi: int = Field(default=150, ge=72, le=300)
-    quality: int = Field(default=85, ge=1, le=100, description="JPEG quality")
-
-
-class WorkerRequest(BaseModel):
-    """Request from Rust to Python worker"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    cmd: CommandType
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    priority: Priority = Priority.NORMAL
-    
     class Config:
         use_enum_values = True
 
 
-# ==================== RESPONSE MODELS ====================
-
-class PerformanceMetrics(BaseModel):
-    """Performance metrics for monitoring"""
-    duration_ms: float
-    peak_ram_mb: Optional[float] = None
-
-
-class EvidenceData(BaseModel):
-    """Successful evidence extraction result"""
-    base64: str
-    width: int
-    height: int
-    mime_type: str = "image/jpeg"
+class BoundingBox(BaseModel):
+    """PDF bounding box in specified units"""
+    x: float
+    y: float
+    width: float
+    height: float
+    unit: str = "pt"
 
 
-class ErrorDetail(BaseModel):
-    """Error details for failed requests"""
-    type: ErrorType
-    message: str
-    traceback: Optional[str] = None
+class HandshakeRequestPayload(BaseModel):
+    rust_version: str
+    expected_protocol_v: str
+    capabilities_requested: List[str]
 
 
-class WorkerResponse(BaseModel):
-    """Response from Python worker to Rust"""
+class HandshakeResponsePayload(BaseModel):
+    worker_pid: int
+    docling_version: str
+    python_version: str
+    capabilities_supported: List[str]
+    max_memory_mb: int
+    status: str
+
+
+class ExtractEvidencePayload(BaseModel):
+    file_path: str
+    page_index: int
+    bbox: BoundingBox
+    dpi: int = 150
+    output_format: Optional[str] = "jpeg"
+    quality: Optional[int] = 85
+
+
+class ParseTablePayload(BaseModel):
+    file_path: str
+    page_index: int
+    hint_bbox: Optional[BoundingBox] = None
+    detection_confidence_threshold: float = 0.7
+    language: str = "vie"
+
+
+class SuccessPayload(BaseModel):
     req_id: str
-    status: str  # "success" or "error"
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[ErrorDetail] = None
-    perf: Optional[PerformanceMetrics] = None
-    
-    @classmethod
-    def success(
-        cls,
-        req_id: str,
-        data: Dict[str, Any],
-        duration_ms: float,
-        peak_ram_mb: Optional[float] = None
-    ) -> "WorkerResponse":
-        return cls(
-            req_id=req_id,
-            status="success",
-            data=data,
-            perf=PerformanceMetrics(
-                duration_ms=duration_ms,
-                peak_ram_mb=peak_ram_mb
-            )
-        )
-    
-    @classmethod
-    def error(
-        cls,
-        req_id: str,
-        error_type: ErrorType,
-        message: str,
-        traceback: Optional[str] = None
-    ) -> "WorkerResponse":
-        return cls(
-            req_id=req_id,
-            status="error",
-            error=ErrorDetail(
-                type=error_type,
-                message=message,
-                traceback=traceback
-            )
-        )
+    data: Any
+    metadata: Optional[Any] = None
 
 
-# ==================== LIFECYCLE MODELS ====================
-
-class ReadyMessage(BaseModel):
-    """Initial ready signal from Python to Rust"""
-    type: str = "lifecycle"
-    event: LifecycleEvent = LifecycleEvent.READY
-    version: str
-    pid: int = Field(default_factory=os.getpid)
-    capabilities: List[str] = Field(default_factory=list)
-    worker_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-
-
-class OOMWarningMessage(BaseModel):
-    """Out of memory warning before worker kills itself"""
-    type: str = "lifecycle"
-    event: LifecycleEvent = LifecycleEvent.OOM_WARNING
-    memory_mb: float
-    limit_mb: float
-    pid: int = Field(default_factory=os.getpid)
+class ErrorPayload(BaseModel):
+    req_id: str
+    code: str
+    severity: ErrorSeverity
+    message: str
+    details: Optional[Any] = None
+    suggested_action: Optional[str] = None
+    timestamp: int = Field(default_factory=lambda: int(time.time() * 1000))
+    stack_trace: Optional[str] = None
 
 
-# ==================== HEALTH CHECK ====================
+class ProgressPayload(BaseModel):
+    req_id: str
+    stage: str
+    current: int
+    total: int
+    stage_description: Optional[str] = None
+    eta_seconds: Optional[int] = None
 
-class HealthCheckResponse(BaseModel):
-    """Health check response"""
-    status: str  # "healthy" or "degraded"
-    memory_mb: float
-    uptime_seconds: float
-    requests_processed: int
-    error_count: int
-    worker_id: str
+
+class ErrorCodes:
+    """Standard error codes for IPC"""
+    E_SYS_001 = "E-SYS-001"  # Internal System Error
+    E_FILE_001 = "E-FILE-001"  # File Not Found
+    E_VAL_001 = "E-VAL-001"  # Validation Error
+    E_PROC_001 = "E-PROC-001"  # Processing Error
+
+
+# Helper functions
+def create_message(msg_type: MessageType, payload: Any) -> IpcMessage:
+    """Create a new IPC message with auto-generated ID and timestamp"""
+    return IpcMessage(type=msg_type, payload=payload)
+
+
+def create_error_message(
+    request_id: str,
+    error_code: str,
+    message: str,
+    severity: ErrorSeverity = ErrorSeverity.ERROR,
+    details: Optional[Any] = None,
+    suggested_action: Optional[str] = None,
+) -> IpcMessage:
+    """Create an error response message"""
+    payload = ErrorPayload(
+        req_id=request_id,
+        code=error_code,
+        severity=severity,
+        message=message,
+        details=details,
+        suggested_action=suggested_action,
+    )
+    # Using model_dump (pydantic v2) or dict (pydantic v1) for payload
+    payload_data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    return create_message(MessageType.RES_ERROR, payload_data)
+
+
+def create_success_message(request_id: str, data: Any, metadata: Optional[Any] = None) -> IpcMessage:
+    """Create a success response message"""
+    payload = SuccessPayload(req_id=request_id, data=data, metadata=metadata)
+    payload_data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    return create_message(MessageType.RES_SUCCESS, payload_data)
+
+
+# Add method to IpcMessage for easier serialization
+def to_json(self) -> str:
+    return self.model_dump_json() if hasattr(self, "model_dump_json") else self.json()
+
+IpcMessage.to_json = to_json

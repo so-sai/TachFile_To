@@ -1,17 +1,5 @@
-# TachFileTo Backend Dependencies
-# For pip install -r requirements.txt
-
-# Core OCR/PDF Engine
-docling>=1.0.0,<2.0.0
-
-# Schema Validation
-pydantic>=2.0.0,<3.0.0
-
-# System Monitoring
-psutil>=5.9.0,<6.0.0
-
-# Image Processing
-Pillow>=10.0.0,<11.0.0
-
-# Fast JSON serialization
-orjson>=3.9.0,<4.0.0
+# Backend Python Worker
+pydantic>=2.0
+# docling>=2.0  # Uncomment when ready for real Docling integration
+PyMuPDF  # Relaxed version constraint for Python 3.14
+Pillow==10.1.0
