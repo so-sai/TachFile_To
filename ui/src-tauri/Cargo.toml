@@ -1,9 +1,9 @@
 [package]
-name = "tachfileto-core"
-version = "2.3.0"
+name = "tachfileto-bin"
+version = "2.5.0"
 description = "High-performance Excel Processing Engine for Enterprise"
 authors = ["TachFileTo Engineering Team"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "tachfileto_lib"
@@ -28,7 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 polars = { version = "0.52", default-features = false, features = ["lazy", "json", "dtype-struct", "serde", "ipc"] }
 
 # Excel parsing via calamine (Polars Rust doesn't have native Excel reader)
-calamine = "0.32"
+calamine = { version = "0.32", features = ["dates"] } 
 
 [dev-dependencies]
 tempfile = "3.10"

@@ -1,0 +1,78 @@
+    Checking tachfileto-bin v2.5.0 (E:\DEV\TachFile_To\ui\src-tauri)
+error[E0599]: no method named `ok_or_else` found for enum `Result<T, E>` in the current scope
+  --> src\excel_engine.rs:51:14
+   |
+49 |           Some(name) => workbook
+   |  _______________________-
+50 | |             .worksheet_range(name)
+51 | |             .ok_or_else(|| anyhow!("Không tìm thấy sheet: {}", name))
+   | |_____________-^^^^^^^^^^
+   |
+help: there is a method `or_else` with a similar name
+   |
+51 -             .ok_or_else(|| anyhow!("Không tìm thấy sheet: {}", name))
+51 +             .or_else(|| anyhow!("Không tìm thấy sheet: {}", name))
+   |
+
+error[E0599]: no function or associated item named `new` found for struct `ExcelAppState` in the current scope
+  --> src\lib.rs:19:32
+   |
+19 |         .manage(ExcelAppState::new())
+   |                                ^^^ function or associated item not found in `ExcelAppState`
+   |
+  ::: src\excel_engine.rs:20:1
+   |
+20 | pub struct ExcelAppState {
+   | ------------------------ function or associated item `new` not found for this struct
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `new`, perhaps you need to implement one of them:
+           candidate #1: `Reader`
+           candidate #2: `RollingAggWindowNoNulls`
+           candidate #3: `RollingAggWindowNulls`
+           candidate #4: `StateUpdate`
+           candidate #5: `ahash::HashMapExt`
+           candidate #6: `ahash::HashSetExt`
+           candidate #7: `brotli::enc::backward_references::hash_to_binary_tree::Allocable`
+           candidate #8: `brotli::enc::threading::AnyBoxConstructor`
+           candidate #9: `foldhash::convenience::HashMapExt`
+           candidate #10: `foldhash::convenience::HashSetExt`
+           candidate #11: `itertools::adaptors::coalesce::CountItem`
+           candidate #12: `parking_lot_core::thread_parker::ThreadParkerT`
+           candidate #13: `polars::prelude::InitHashMaps`
+           candidate #14: `polars::prelude::InitHashMaps2`
+           candidate #15: `polars::prelude::NamedFrom`
+           candidate #16: `polars::prelude::SerReader`
+           candidate #17: `polars::prelude::SerWriter`
+           candidate #18: `rand::distr::uniform::UniformSampler`
+           candidate #19: `ring::aead::BoundKey`
+           candidate #20: `rolling::rank::RankPolicy`
+           candidate #21: `serde_with::duplicate_key_impls::error_on_duplicate::PreventDuplicateInsertsMap`
+           candidate #22: `serde_with::duplicate_key_impls::error_on_duplicate::PreventDuplicateInsertsSet`
+           candidate #23: `serde_with::duplicate_key_impls::first_value_wins::DuplicateInsertsFirstWinsMap`
+           candidate #24: `serde_with::duplicate_key_impls::last_value_wins::DuplicateInsertsLastWinsSet`
+           candidate #25: `simdutf8::basic::imp::ChunkedUtf8Validator`
+           candidate #26: `simdutf8::basic::imp::Utf8Validator`
+           candidate #27: `tauri_runtime::Runtime`
+           candidate #28: `tauri_runtime::window::WindowBuilder`
+           candidate #29: `zip::read::magic_finder::FinderDirection`
+
+warning: unused import: `polars::prelude`
+   --> src\normalizer.rs:327:13
+    |
+327 |         use polars::prelude::*;
+    |             ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `risk_density`
+   --> src\dashboard.rs:258:9
+    |
+258 |     let risk_density = if total_rows > 0 {
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_risk_density`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0599`.
+warning: `tachfileto-bin` (lib) generated 2 warnings
+error: could not compile `tachfileto-bin` (lib) due to 2 previous errors; 2 warnings emitted

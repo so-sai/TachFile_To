@@ -1,0 +1,152 @@
+/* 
+ * TACHFILE_TO BRUTALIST DESIGN SYSTEM V2.5 - DARK MODE
+ * Font: JetBrains Mono for numbers, Inter for text
+ */
+
+:root {
+  --black: #0a0a0a;
+  --panel: #111111;
+  --steel: #1a1a1a;
+  --border: #333333;
+  --text-main: #e0e0e0;
+  --text-dim: #666666;
+  --neon-cyan: #00f3ff;
+  --neon-green: #00ff99;
+  --neon-red: #ff0055;
+  --neon-yellow: #ffcc00;
+}
+
+/* COCKPIT LAYOUT */
+.cockpit-container {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  grid-template-rows: 1fr 60px;
+  height: calc(100vh - 92px);
+  background-color: var(--black);
+  color: var(--text-main);
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* SIDEBAR (Left Column) */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* MAIN PANEL (Right Column - Risk Table) */
+.main-panel {
+  overflow: auto;
+}
+
+/* COMMON BRUTALIST BOX */
+.brutal-box {
+  border: 2px solid var(--border);
+  background-color: var(--panel);
+  padding: 16px;
+  position: relative;
+}
+
+.brutal-box-green {
+  border-color: var(--neon-green);
+}
+
+.brutal-box-red {
+  border-color: var(--neon-red);
+}
+
+.brutal-box-yellow {
+  border-color: var(--neon-yellow);
+}
+
+/* TABLES */
+.iron-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.iron-table th {
+  background-color: var(--steel);
+  color: var(--text-main);
+  text-align: left;
+  padding: 10px 12px;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--border);
+}
+
+.iron-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+}
+
+.iron-table tr:hover {
+  background-color: var(--steel);
+}
+
+/* MATRIX TEXT (Loading logs) */
+.matrix-text {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  color: var(--neon-green);
+  font-size: 12px;
+  line-height: 1.6;
+  text-shadow: 0 0 10px rgba(0, 255, 153, 0.3);
+}
+
+/* ANIMATIONS */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+
+  50% {
+    box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+  }
+}
+
+.neon-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* SCROLLBAR (Cyberpunk Style) */
+.cockpit-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.cockpit-container ::-webkit-scrollbar-track {
+  background: var(--black);
+}
+
+.cockpit-container ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0;
+}
+
+.cockpit-container ::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-cyan);
+}
+
+/* BUTTON STYLES */
+button {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  cursor: pointer;
+  transition: all 0.1s linear;
+}
+
+button:hover {
+  filter: brightness(1.2);
+}
+
+button:active {
+  transform: scale(0.98);
+}

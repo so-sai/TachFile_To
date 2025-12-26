@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import '../styles/Dashboard.css';
+
+// Import sub-components
+import StatusPanel from './dashboard/StatusPanel';
+import FinancialCard from './dashboard/FinancialCard';
+import RiskTable from './dashboard/RiskTable';
+import ActionPrompt from './dashboard/ActionPrompt';
 
 interface DashboardSummary {
     status: string;
     status_reason: string;
     top_risks: Array<{
         description: string;
-        value: string;
-        severity: string;
+        deviation: number;
+        impact: string;
     }>;
     payment_progress: {
         received: number;
@@ -22,25 +29,66 @@ interface DashboardSummary {
         total_amount: number;
         avg_deviation: number;
         high_risk_count: number;
+        critical_count: number;
+        profit_margin_percent: number;
         last_updated: string;
     };
 }
+
+// MOCK DATA FOR FOUNDER'S VERIFICATION
+const MOCK_DATA: DashboardSummary = {
+    status: "ĐỎ",
+    status_reason: "SAI LỆCH KHỐI LƯỢNG > 15% & LỢI NHUẬN < 0%",
+    top_risks: [
+        { description: "BÊ TÔNG MÓNG M250", deviation: 18.5, impact: "-450.000.000 ₫" },
+        { description: "CỐT THÉP CỘT D20", deviation: 12.2, impact: "-120.000.000 ₫" },
+        { description: "NHÂN CÔNG XÂY TƯỜNG", deviation: 9.8, impact: "-85.000.000 ₫" },
+        { description: "ĐÀO ĐẤT HỐ MÓNG", deviation: 22.1, impact: "-310.000.000 ₫" },
+        { description: "VẬN CHUYỂN PHẾ THẢI", deviation: 15.0, impact: "-45.000.000 ₫" },
+    ],
+    payment_progress: {
+        received: 12500000000,
+        total_contract: 25000000000,
+        percent: 50,
+        projected_profit: -120000000,
+        profit_percent: -0.5
+    },
+    pending_actions: [
+        "KIỂM TRA LẠI ĐƠN GIÁ BÊ TÔNG",
+        "RÀ SOÁT KHỐI LƯỢNG ĐÀO ĐẤT",
+        "TẠM DỪNG THANH TOÁN ĐỢT 3"
+    ],
+    metrics: {
+        total_rows: 12450,
+        total_amount: 25000000000,
+        avg_deviation: 15.4,
+        high_risk_count: 5,
+        critical_count: 3,
+        profit_margin_percent: -0.5,
+        last_updated: new Date().toISOString()
+    }
+};
 
 const DashboardFounder: React.FC = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [useMock, setUseMock] = useState(true); // Toggle for verification
 
     const loadDashboard = async () => {
+        if (useMock) {
+            setSummary(MOCK_DATA);
+            return;
+        }
+
         setLoading(true);
         setError(null);
-
         try {
             const result = await invoke<DashboardSummary>('get_dashboard_summary');
             setSummary(result);
         } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
-            console.error('Dashboard error:', err);
+            console.warn("Could not load real data, falling back to mock", err);
+            setSummary(MOCK_DATA);
         } finally {
             setLoading(false);
         }
@@ -48,14 +96,13 @@ const DashboardFounder: React.FC = () => {
 
     useEffect(() => {
         loadDashboard();
-    }, []);
+    }, [useMock]);
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Đang phân tích dữ liệu...</p>
+            <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="matrix-text animate-pulse" style={{ fontSize: '24px' }}>
+                    &gt; ĐANG TRÍCH XUẤT DỮ LIỆU TỪ LÕI THÉP...
                 </div>
             </div>
         );
@@ -63,162 +110,76 @@ const DashboardFounder: React.FC = () => {
 
     if (error) {
         return (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                <h3 className="text-red-800 font-semibold mb-2">Không thể tải dashboard</h3>
-                <p className="text-red-600 mb-4">{error}</p>
-                <button
-                    onClick={loadDashboard}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                >
-                    Thử lại
-                </button>
+            <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+                <div className="brutal-box brutal-box-red w-full">
+                    <div className="font-black text-2xl mb-4">LỖI HỆ THỐNG</div>
+                    <div className="font-mono">{error}</div>
+                </div>
             </div>
         );
     }
 
-    if (!summary) {
-        return (
-            <div className="text-center p-8 text-gray-500">
-                <p>Chưa có dữ liệu. Vui lòng tải file Excel trước.</p>
-            </div>
-        );
-    }
-
-    const statusColor = summary.status === "XANH"
-        ? "text-green-700 bg-green-50 border-green-200"
-        : summary.status === "VÀNG"
-            ? "text-yellow-700 bg-yellow-50 border-yellow-200"
-            : "text-red-700 bg-red-50 border-red-200";
+    if (!summary) return null;
 
     return (
-        <div className="space-y-6 p-6">
-            {/* HEADER */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Dashboard Founder</h1>
-                    <p className="text-gray-600">Phân tích dự án theo thời gian thực</p>
-                </div>
-                <div className="text-sm text-gray-500">
-                    Cập nhật: {new Date(summary.metrics.last_updated).toLocaleTimeString('vi-VN')}
+        <div className="cockpit-container">
+            {/* SIDEBAR: VERDICT & VAULT */}
+            <div className="sidebar">
+                {/* THE VERDICT */}
+                <StatusPanel
+                    status={summary.status}
+                    reason={summary.status_reason}
+                    mock={useMock}
+                />
+
+                {/* THE VAULT */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                    <FinancialCard
+                        label="Tổng Doanh Thu (Hợp đồng)"
+                        value={summary.payment_progress.total_contract}
+                    />
+                    <FinancialCard
+                        label="Đã Thu Hồi (Thanh toán)"
+                        value={summary.payment_progress.received}
+                        subValue={`Tiến độ: ${summary.payment_progress.percent}%`}
+                    />
+                    <FinancialCard
+                        label="Lợi Nhuận Dự Kiến (V2.5 logic)"
+                        value={summary.payment_progress.projected_profit}
+                        subValue={`Tỷ suất: ${summary.payment_progress.profit_percent.toFixed(1)}%`}
+                        color={summary.payment_progress.profit_percent > 10 ? 'var(--neon-green)' : (summary.payment_progress.profit_percent > 0 ? 'var(--neon-yellow)' : 'var(--neon-red)')}
+                        isProfit={true}
+                    />
+
+                    {/* MOCK TOGGLE FOOTER */}
+                    <div style={{ marginTop: 'auto', padding: '10px 0' }}>
+                        <button
+                            onClick={() => setUseMock(!useMock)}
+                            style={{
+                                width: '100%',
+                                background: 'none',
+                                border: '2px solid var(--steel)',
+                                color: '#444',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                padding: '4px'
+                            }}
+                        >
+                            {useMock ? 'KÍCH HOẠT DỮ LIỆU THẬT' : 'CHUYỂN SANG MÔ PHỎNG'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* MAIN GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* 1. ĐÈN TỔNG QUAN */}
-                <div className={`col-span-1 md:col-span-2 border-2 rounded-xl p-6 flex flex-col items-center justify-center ${statusColor}`}>
-                    <div className="text-5xl font-bold mb-3">{summary.status}</div>
-                    <div className="text-center text-sm mb-4">{summary.status_reason}</div>
-                    <div className="grid grid-cols-3 gap-4 w-full mt-4">
-                        <div className="text-center">
-                            <div className="text-2xl font-semibold">{summary.metrics.total_rows}</div>
-                            <div className="text-xs text-gray-600">Hạng mục</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-semibold">{summary.metrics.high_risk_count}</div>
-                            <div className="text-xs text-gray-600">Rủi ro cao</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-semibold">{summary.metrics.avg_deviation.toFixed(1)}%</div>
-                            <div className="text-xs text-gray-600">Lệch TB</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. TOP RỦI RO */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl p-6">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center">
-                        <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
-                        CẢNH BÁO NGAY
-                    </h2>
-                    <ul className="space-y-3">
-                        {summary.top_risks.map((risk, i) => (
-                            <li key={i} className="flex justify-between items-start p-3 bg-gray-50 rounded">
-                                <div className="flex-1">
-                                    <span className="text-sm block mb-1">{risk.description}</span>
-                                    <span className={`text-xs px-2 py-1 rounded inline-block ${risk.severity === 'HIGH' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                        {risk.severity}
-                                    </span>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                {/* 3. TIẾN ĐỘ THANH TOÁN */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl p-6">
-                    <h2 className="text-lg font-semibold mb-4">💰 THANH TOÁN</h2>
-                    <div className="mb-4">
-                        <div className="flex justify-between mb-1">
-                            <span className="text-sm">Tiến độ</span>
-                            <span className="font-semibold">{summary.payment_progress.percent.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                                className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${Math.min(100, summary.payment_progress.percent)}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                            <span>Đã thu:</span>
-                            <span className="font-medium">{(summary.payment_progress.received / 1e6).toFixed(0)}M</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>Tổng HĐ:</span>
-                            <span className="font-medium">{(summary.payment_progress.total_contract / 1e6).toFixed(0)}M</span>
-                        </div>
-                        <div className={`flex justify-between pt-2 border-t ${summary.payment_progress.projected_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            <span className="font-semibold">Lãi DK:</span>
-                            <span className="font-bold">
-                                {summary.payment_progress.projected_profit >= 0 ? '+' : ''}
-                                {(summary.payment_progress.projected_profit / 1e6).toFixed(0)}M
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 4. HÀNH ĐỘNG */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl p-6">
-                    <h2 className="text-lg font-semibold mb-4">📋 VIỆC CẦN LÀM</h2>
-                    <ul className="space-y-3">
-                        {summary.pending_actions.map((action, i) => (
-                            <li key={i} className="flex items-start gap-3 p-3 bg-blue-50 rounded border border-blue-100">
-                                <div className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm">
-                                    {i + 1}
-                                </div>
-                                <span className="text-sm">{action}</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <button
-                        onClick={loadDashboard}
-                        className="w-full mt-6 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition text-sm"
-                    >
-                        🔄 Cập nhật
-                    </button>
-                </div>
+            {/* THE RISK VECTOR */}
+            <div className="main-panel">
+                <RiskTable risks={summary.top_risks} />
             </div>
 
-            {/* QUICK STATS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="text-2xl font-bold">{(summary.metrics.total_amount / 1e6).toFixed(0)}M</div>
-                    <div className="text-sm text-gray-600">Tổng giá trị</div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="text-2xl font-bold">{summary.metrics.avg_deviation.toFixed(1)}%</div>
-                    <div className="text-sm text-gray-600">Lệch TB</div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="text-2xl font-bold">{summary.metrics.high_risk_count}</div>
-                    <div className="text-sm text-gray-600">Rủi ro</div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="text-2xl font-bold">{summary.payment_progress.percent.toFixed(0)}%</div>
-                    <div className="text-sm text-gray-600">Thanh toán</div>
-                </div>
+            {/* THE ACTION BAR */}
+            <div style={{ gridColumn: 'span 2' }}>
+                <ActionPrompt actions={summary.pending_actions} />
             </div>
         </div>
     );

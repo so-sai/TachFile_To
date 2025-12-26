@@ -16,7 +16,7 @@ use excel_engine::ExcelAppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(ExcelAppState::new())
+        .manage(ExcelAppState::default())
         .invoke_handler(tauri::generate_handler![
             excel_engine::excel_load_file,
             excel_engine::excel_get_window,

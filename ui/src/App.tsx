@@ -2,10 +2,14 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import DashboardFounder from './components/DashboardFounder';
+import './styles/Dashboard.css';
+
+type TabType = 'dashboard' | 'data';
 
 const ENTERPRISE_STYLES = `
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; color: #1F2937; background-color: #F6F7F8; -webkit-font-smoothing: antialiased; font-weight: 450; line-height: 1.45; }
+  body { margin: 0; font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; font-size: 13px; color: #000; background-color: #EEE; -webkit-font-smoothing: antialiased; font-weight: 500; }
   .tabular-nums { font-variant-numeric: tabular-nums; }
   .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .flex { display: flex; }
@@ -23,76 +27,59 @@ const ENTERPRISE_STYLES = `
   .gap-4 { gap: 16px; }
   .gap-6 { gap: 24px; }
   .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-  .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+  .shadow-hard { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
   .bg-white { background-color: #FFFFFF; }
   .bg-blue-50 { background-color: #EFF6FF; }
   .bg-gray-50 { background-color: #F9FAFB; }
   .bg-gray-200 { background-color: #E5E7EB; }
   .border { border-style: solid; border-width: 1px; }
-  .border-blue-200 { border-color: #BFDBFE; }
-  .border-gray-200 { border-color: #E5E7EB; }
+  .border-2 { border-width: 2px; }
+  .border-4 { border-width: 4px; }
+  .border-black { border-color: #000; }
   .text-blue-600 { color: #2563EB; }
-  .text-blue-700 { color: #1D4ED8; }
-  .text-gray-400 { color: #9CA3AF; }
-  .text-gray-500 { color: #6B7280; }
-  .text-gray-700 { color: #374151; }
-  .text-gray-900 { color: #111827; }
-  .rounded { border-radius: 4px; }
-  .rounded-sm { border-radius: 2px; }
-  .rounded-full { border-radius: 9999px; }
-  .tracking-wider { letter-spacing: 0.05em; }
-  .tracking-widest { letter-spacing: 0.1em; }
+  .text-red-600 { color: #EE0000; }
+  .rounded-none { border-radius: 0px; }
+  .tracking-tighter { letter-spacing: -0.05em; }
   .z-10 { z-index: 10; }
   .h-4 { height: 16px; }
   .w-4 { width: 16px; }
   .w-2 { width: 8px; }
   .h-2 { height: 8px; }
-  .w-\[1px\] { width: 1px; }
-  .mx-2 { margin-left: 8px; margin-right: 8px; }
-  .mb-2 { margin-bottom: 8px; }
-  .mb-4 { margin-bottom: 16px; }
-  .mt-1 { margin-top: 4px; }
-  .px-2 { padding-left: 8px; padding-right: 8px; }
-  .py-0.5 { padding-top: 2px; padding-bottom: 2px; }
-  .px-3 { padding-left: 12px; padding-right: 12px; }
-  .py-1 { padding-top: 4px; padding-bottom: 4px; }
-  .px-4 { padding-left: 16px; padding-right: 16px; }
-  .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-  .enterprise-scroll-container { overflow-y: auto; overflow-x: auto; contain: strict; scrollbar-width: auto; scrollbar-color: #555555 #F0F0F0; }
-  .enterprise-scroll-container::-webkit-scrollbar { width: 14px; height: 14px; }
-  .enterprise-scroll-container::-webkit-scrollbar-track { background: #F0F0F0; border-left: 1px solid #E5E7EB; }
-  .enterprise-scroll-container::-webkit-scrollbar-thumb { background-color: #6B7280; border: 3px solid transparent; background-clip: content-box; border-radius: 0; }
-  .enterprise-scroll-container::-webkit-scrollbar-thumb:hover { background-color: #4B5563; }
-  .app-header { height: 50px; flex-shrink: 0; border-bottom: 1px solid #E5E7EB; background-color: #FFFFFF; padding: 0 16px; }
-  .table-header { height: 32px; background-color: #F9FAFB; border-bottom: 1px solid #E5E7EB; color: #4b5563; font-weight: 600; text-transform: uppercase; font-size: 11px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10; }
-  .header-cell { padding: 0 12px; border-right: 1px solid #E5E7EB; display: flex; align-items: center; height: 100%; white-space: nowrap; }
-  .table-row { height: 32px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; background-color: #FFFFFF; transition: background 0.05s; }
-  .table-row:hover { background-color: #F3F4F6; }
-  .cell { padding: 0 12px; border-right: 1px solid #F3F4F6; font-size: 13px; color: #374151; height: 100%; display: flex; align-items: center; }
-  .drop-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.6); backdrop-filter: blur(8px); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid #3B82F6; }
-  .landing-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 50%, #FFFFFF 0%, #F3F4F6 100%); padding: 40px; }
-  .hero-card { width: 480px; background: white; border-radius: 24px; padding: 48px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #E5E7EB; text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
-  .hero-card:hover { transform: translateY(-4px); box-shadow: 0 25px 30px -5px rgba(59, 130, 246, 0.1), 0 15px 15px -5px rgba(59, 130, 246, 0.05); border-color: #3B82F6; }
-  .hero-icon { width: 80px; height: 80px; background: #EFF6FF; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; color: #3B82F6; }
-  .hero-title { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 12px; }
-  .hero-subtitle { font-size: 14px; color: #6B7280; line-height: 1.6; margin-bottom: 32px; }
-  .upload-btn { background: #2563EB; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; border: none; cursor: pointer; }
-  .upload-btn:hover { background: #1D4ED8; }
-  .file-types { margin-top: 32px; display: flex; gap: 12px; justify-content: center; }
-  .file-badge { font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: #F3F4F6; color: #4B5563; border: 1px solid #E5E7EB; }
-  .skeleton-bg { background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
-  @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .app-header { height: 60px; flex-shrink: 0; border-bottom: 4px solid #000; background-color: #FFF; padding: 0 24px; }
+  .table-header { height: 32px; background-color: #000; color: #FFF; font-weight: 800; text-transform: uppercase; font-size: 11px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10; }
+  .header-cell { padding: 0 12px; border-right: 1px solid #333; display: flex; align-items: center; height: 100%; white-space: nowrap; }
+  .table-row { height: 32px; border-bottom: 1px solid #DDD; display: flex; align-items: center; background-color: #FFFFFF; }
+  .table-row:hover { background-color: #FFFF00; color: #000; }
+  .cell { padding: 0 12px; border-right: 1px solid #EEE; font-size: 13px; color: #000; height: 100%; display: flex; align-items: center; }
+  .drop-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 0, 0.9); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 10px solid #000; }
+  .skeleton-bg { background: #EEE; position: relative; overflow: hidden; }
+  .skeleton-bg::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent); animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 100% { transform: translateX(100%); } }
+  .tab-btn { padding: 12px 24px; font-weight: 900; font-size: 14px; border: none; cursor: pointer; transition: none; text-transform: uppercase; border-right: 4px solid #000; }
+  .tab-btn.active { background: #FFFF00; color: #000; }
+  .tab-btn:not(.active) { background: #FFF; color: #000; }
+  .tab-btn:not(.active):hover { background: #000; color: #FFF; }
 `;
 
 function App() {
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [dataMap, setDataMap] = useState<Record<number, any>>({});
   const [totalRows, setTotalRows] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [hasData, setHasData] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
   const fetchingPages = useRef(new Set<number>());
+
+  // Matrix Logs Sequence
+  const matrixLogs = [
+    "> KÍCH HOẠT LÕI THÉP (IRON CORE)...",
+    "> ĐANG ĐỌC DỮ LIỆU EXCEL BIẾN THỂ TỰ ĐỘNG...",
+    "> POLARS 0.52: ĐANG XỬ LÝ DỮ LIỆU...",
+    "> CHUẨN HÓA THUẬT NGỮ QS VIỆT NAM...",
+    "> ĐANG TRÍCH XUẤT PHÁN QUYẾT TỪNG DÒNG...",
+  ];
 
   useEffect(() => {
     const setupDragDrop = async () => {
@@ -114,21 +101,33 @@ function App() {
 
   const processFile = async (path: string) => {
     setIsLoading(true);
-    setLoadingMsg("Engine 2025: Đang xử lý...");
+    let logIdx = 0;
+    const logInterval = setInterval(() => {
+      if (logIdx < matrixLogs.length) {
+        setLoadingMsg(matrixLogs[logIdx]);
+        logIdx++;
+      }
+    }, 300);
+
     try {
-      const count = await invoke<number>("load_excel_file", { filePath: path });
-      setTotalRows(count);
+      const response = await invoke<any>("excel_load_file", { path: path });
+      setTotalRows(response.total_rows);
       setDataMap({});
       fetchingPages.current.clear();
+      setHasData(true);
+      setActiveTab('dashboard');
+    } catch (err) {
+      alert("Lỗi: " + err);
+    } finally {
+      clearInterval(logInterval);
       setLoadingMsg("");
-      fetchPage(0);
-    } catch (err) { alert("Lỗi: " + err); }
-    finally { setIsLoading(false); }
+      setIsLoading(false);
+    }
   };
 
   const fetchPage = useCallback((page: number) => {
     const PAGE_SIZE = 100;
-    invoke<string>("get_window", { offset: page * PAGE_SIZE, limit: PAGE_SIZE })
+    invoke<string>("excel_get_window", { start: page * PAGE_SIZE, end: (page + 1) * PAGE_SIZE })
       .then((jsonStr) => {
         try {
           const rows = JSON.parse(jsonStr);
@@ -185,106 +184,135 @@ function App() {
         </div>
       )}
 
-      {/* --- HEADER ĐÃ SỬA: TÁCH BIỆT TÊN VÀ PHIÊN BẢN --- */}
-      <header className="app-header flex items-center justify-between bg-white shadow-sm z-10">
-        <div className="flex items-center gap-3">
-          {/* 1. Tên dự án chuẩn Engineering */}
-          <h1 className="font-bold text-xl text-[#111827] tracking-wider font-mono">
+      {/* --- HEADER V2.5: FOUNDER'S COMMAND CENTER --- */}
+      <header className="app-header flex items-center justify-between z-10">
+        <div className="flex items-center h-full">
+          {/* 1. Tên dự án - Brutalist Style */}
+          <h1 className="font-black text-2xl text-black tracking-tighter mr-6 uppercase">
             TACHFILE_TO
           </h1>
 
-          {/* 2. Badge Phiên bản tách biệt */}
-          <div className="flex items-center">
-            <span className="h-4 w-[1px] bg-gray-300 mx-2"></span> {/* Vách ngăn */}
-            <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 shadow-sm uppercase tracking-tighter">
-              BẢN CHUYÊN NGHIỆP | 12.2025
-            </span>
+          {/* 2. TAB BUTTONS - Hard Edges */}
+          <div className="flex h-full border-l-4 border-black">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+            >
+              🚦 DASHBOARD
+            </button>
+            <button
+              onClick={() => setActiveTab('data')}
+              className={`tab-btn ${activeTab === 'data' ? 'active' : ''}`}
+            >
+              📋 DATA GRID
+            </button>
           </div>
         </div>
 
-        {/* Thông tin trạng thái bên phải */}
-        <div className="text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-200">
-          {isLoading ? (
-            <span className="text-blue-600 animate-pulse">{loadingMsg}</span>
-          ) : (
-            <span>RECORDS: <span className="text-gray-900 font-bold tabular-nums">{totalRows.toLocaleString()}</span></span>
-          )}
+        {/* 3. TRẠNG THÁI HỆ THỐNG - HIGH PRESSURE */}
+        <div className="flex items-center gap-4">
+          <div className="bg-black text-[#00FF00] font-black px-4 py-2 text-xs uppercase tracking-widest border-2 border-black">
+            IRON CORE: VALIDATED
+          </div>
+          <div className="text-sm font-black text-black">
+            {isLoading ? (
+              <span className="animate-pulse">{loadingMsg || "ĐANG XỬ LÝ..."}</span>
+            ) : (
+              <span>RECORDS: <span className="text-blue-600">{totalRows.toLocaleString()}</span></span>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* TABLE HEADER (Visible when data loaded) */}
-      {totalRows > 0 && (
-        <div className="table-header">
-          <div className="header-cell" style={{ width: 60 }}>#</div>
-          {columns.map(col => (
-            <div key={col} className="header-cell" style={{ width: 150 }}>{col}</div>
-          ))}
+      {/* MAIN CONTENT AREA */}
+      {activeTab === 'dashboard' ? (
+        // DASHBOARD TAB
+        <div className="flex-1 overflow-auto bg-[#EEE]">
+          {hasData ? (
+            <DashboardFounder />
+          ) : (
+            // EMPTY STATE - Brutalist Style
+            <div className="flex flex-col items-center justify-center h-full p-8">
+              <div className="border-[8px] border-black p-12 bg-white shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] max-w-2xl text-center">
+                <h2 className="text-6xl font-black mb-6 tracking-tighter uppercase underline decoration-8 decoration-yellow-400">
+                  READY FOR JUDGMENT
+                </h2>
+                <p className="text-2xl font-bold mb-10 text-gray-700">Kéo thả file Excel để bắt đầu phân tích rủi ro dự án</p>
+                <div className="grid grid-cols-3 gap-6 text-xs font-black uppercase tracking-widest">
+                  <div className="p-4 border-4 border-black bg-green-500">100% TIẾNG VIỆT</div>
+                  <div className="p-4 border-4 border-black bg-blue-500 text-white">IRON CORE V2.5</div>
+                  <div className="p-4 border-4 border-black bg-yellow-500">33/33 TESTS PASS</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+      ) : (
+        // DATA VIEW TAB - QS Grid
+        <>
+          {/* TABLE HEADER */}
+          {totalRows > 0 && (
+            <div className="table-header">
+              <div className="header-cell" style={{ width: 60 }}>ID</div>
+              {columns.map(col => (
+                <div key={col} className="header-cell" style={{ width: 180 }}>{col}</div>
+              ))}
+            </div>
+          )}
+
+          <div ref={parentRef} className="enterprise-scroll-container w-full bg-white relative" style={{ flex: 1 }}>
+            {totalRows === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-black font-black uppercase">
+                <p className="text-4xl italic">Chưa có dữ liệu chi tiết</p>
+              </div>
+            ) : (
+              <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = dataMap[virtualRow.index];
+                  return (
+                    <div
+                      key={virtualRow.index}
+                      className="table-row"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`
+                      }}
+                    >
+                      <div className="cell tabular-nums font-black bg-gray-100 border-r-2 border-black" style={{ width: 60 }}>{virtualRow.index + 1}</div>
+                      {row ? (
+                        columns.map(col => (
+                          <div key={col} className="cell truncate font-medium" style={{ width: 180 }}>{String(row[col])}</div>
+                        ))
+                      ) : (
+                        <div className="cell w-full bg-gray-50 h-full"></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* MAIN VIEW AREA */}
-      <div ref={parentRef} className="enterprise-scroll-container w-full bg-white relative" style={{ flex: 1 }}>
-        {totalRows === 0 ? (
-          // EMPTY STATE (Màn hình chờ chuyên nghiệp)
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <div className="w-16 h-16 mb-4 text-gray-200">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-gray-500">Sẵn sàng tiếp nhận dữ liệu</p>
-            <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest">Kéo thả file Excel (.xlsx) vào đây để phân tích</p>
-          </div>
-        ) : (
-          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const row = dataMap[virtualRow.index];
-              return (
-                <div
-                  key={virtualRow.index}
-                  className="table-row"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`
-                  }}
-                >
-                  <div className="cell tabular-nums text-gray-400 bg-gray-50" style={{ width: 60 }}>{virtualRow.index + 1}</div>
-                  {row ? (
-                    columns.map(col => (
-                      <div key={col} className="cell truncate" style={{ width: 150 }}>{String(row[col])}</div>
-                    ))
-                  ) : (
-                    <div className="cell w-full">
-                      <div className="skeleton-bg h-4 w-2/3 rounded-sm opacity-50"></div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* --- FOOTER ĐÃ SỬA: THÊM KHOẢNG CÁCH (GAP) --- */}
-      <div className="h-[28px] bg-[#F9FAFB] border-t border-[#E5E7EB] flex items-center justify-between px-4 text-[10px] text-gray-500 font-mono select-none z-10">
-        <div className="flex items-center gap-6">
+      {/* --- FOOTER V2.5 --- */}
+      <footer className="h-[32px] bg-black text-white flex items-center justify-between px-6 text-[10px] font-black uppercase tracking-widest select-none z-10 border-t-2 border-white/20">
+        <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            <span className="font-bold text-gray-700">CORE: RUST 2024</span>
+            <span className="w-2 h-2 bg-[#00FF00]"></span>
+            <span>SYSTEM STANDBY</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span>ENGINE:</span>
-            <span className="text-blue-600 font-bold">POLARS 0.44</span>
+          <div className="text-yellow-400">
+            ENGINE: POLARS 0.52 | CALAMINE 0.32
           </div>
-          <div className="hidden sm:block">MEM: OPTIMIZED</div>
         </div>
         <div>
-          © 2025 TACHFILE_TO SYSTEM <span className="text-gray-300 mx-2">|</span> BUILD: 2025.12.26
+          TACHFILE_TO VER 2.50 [IRON CORE]
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

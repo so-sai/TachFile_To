@@ -43,6 +43,8 @@ pub struct DashboardMetrics {
     pub total_amount: f64,
     pub avg_deviation: f64,
     pub high_risk_count: usize,
+    pub critical_count: usize,
+    pub profit_margin_percent: f64,
     pub last_updated: String,
 }
 
@@ -97,16 +99,24 @@ pub async fn get_dashboard_summary(
     // 🎯 4. PHÁT HIỆN RỦI RO
     let (top_risks, high_risk_count) = detect_risks(&df, &column_names);
 
-    // 🎯 5. XÁC ĐỊNH TRẠNG THÁI
-    let (status, status_reason) =
-        determine_project_status(diff_percent, total_amount, high_risk_count, total_rows);
+    // 🎯 5. TÍNH TOÁN TIẾN ĐỘ THANH TOÁN
+    let payment_progress = calculate_payment_progress(&df, &column_names);
 
-    // 🎯 6. HÀNH ĐỘNG ĐỀ XUẤT
+    // 🎯 6. XÁC ĐỊNH TRẠNG THÁI (với profit margin)
+    let profit_margin_percent = payment_progress.profit_percent;
+    let (status, status_reason) =
+        determine_project_status(diff_percent, profit_margin_percent, high_risk_count, total_rows);
+
+    // 🎯 7. HÀNH ĐỘNG ĐỀ XUẤT
     let pending_actions =
         suggest_actions(diff_percent, high_risk_count, &column_names, &status_col);
 
-    // 🎯 7. TÍNH TOÁN TIẾN ĐỘ
-    let payment_progress = calculate_payment_progress(&df, &column_names);
+    // 🎯 8. TÍNH critical_count (rủi ro trên 15%)
+    let critical_count = if diff_percent >= 15.0 {
+        high_risk_count
+    } else {
+        0
+    };
 
     Ok(DashboardSummary {
         status,
@@ -119,6 +129,8 @@ pub async fn get_dashboard_summary(
             total_amount,
             avg_deviation: diff_percent,
             high_risk_count,
+            critical_count,
+            profit_margin_percent,
             last_updated: chrono::Local::now().to_rfc3339(),
         },
     })
@@ -239,7 +251,7 @@ fn detect_risks(df: &DataFrame, columns: &[String]) -> (Vec<RiskItem>, usize) {
 /// Xác định trạng thái dự án
 fn determine_project_status(
     diff_percent: f64,
-    _total_amount: f64,
+    profit_margin_percent: f64,
     high_risk_count: usize,
     total_rows: usize,
 ) -> (String, String) {
@@ -249,34 +261,40 @@ fn determine_project_status(
         0.0
     };
 
-    match (diff_percent, risk_density) {
-        (p, _) if p < 1.0 && high_risk_count == 0 => (
-            "XANH".to_string(),
-            format!("Ổn định - Lệch {:.1}%, không có rủi ro lớn", p),
-        ),
-        (p, r) if p <= 5.0 && r < 5.0 => (
-            "XANH".to_string(),
-            format!("Tạm ổn - Lệch {:.1}%, rủi ro thấp ({:.1}%)", p, r),
-        ),
-        (p, r) if p <= 10.0 && r < 10.0 => (
-            "VÀNG".to_string(),
-            format!(
-                "Cần theo dõi - Lệch {:.1}%, rủi ro trung bình ({:.1}%)",
-                p, r
-            ),
-        ),
-        (p, r) if p <= 20.0 => (
-            "VÀNG".to_string(),
-            format!("Cảnh báo - Lệch {:.1}%, rủi ro cao ({:.1}%)", p, r),
-        ),
-        _ => (
+    // LOGIC KHỚP SPEC V2.5 (với status tiếng Việt cho thị trường VN)
+    
+    // ĐỎ (CRITICAL): Lệch >= 15% HOẶC nhiều rủi ro HOẶC lỗ
+    // KIỂM TRA ĐỎ TRƯỚC để đảm bảo threshold 15% được ưu tiên
+    if diff_percent >= 15.0 || high_risk_count >= 5 || profit_margin_percent <= 0.0 {
+        return (
             "ĐỎ".to_string(),
             format!(
-                "Nguy cơ - Lệch {:.1}%, nhiều rủi ro ({})",
-                diff_percent, high_risk_count
+                "Nguy cơ - Lệch {:.1}%, nhiều rủi ro ({}), lãi {:.1}%",
+                diff_percent, high_risk_count, profit_margin_percent
             ),
-        ),
+        );
     }
+    
+    // XANH (SAFE): Lệch < 5%, không rủi ro, lãi > 10%
+    if diff_percent < 5.0 && high_risk_count == 0 && profit_margin_percent > 10.0 {
+        return (
+            "XANH".to_string(),
+            format!(
+                "Ổn định - Lệch {:.1}%, lãi {:.1}%",
+                diff_percent, profit_margin_percent
+            ),
+        );
+    }
+
+    // VÀNG (WARNING): Lệch 5-15% HOẶC rủi ro vừa HOẶC lãi thấp
+    // Mọi trường hợp khác không phải ĐỎ hoặc XANH sẽ là VÀNG
+    (
+        "VÀNG".to_string(),
+        format!(
+            "Cần theo dõi - Lệch {:.1}%, rủi ro {}, lãi {:.1}%",
+            diff_percent, high_risk_count, profit_margin_percent
+        ),
+    )
 }
 
 /// Đề xuất hành động
@@ -370,50 +388,48 @@ mod tests {
 
     #[test]
     fn test_determine_project_status_green_perfect() {
-        // Lệch <1%, không rủi ro -> XANH
-        let (status, reason) = determine_project_status(0.5, 1_000_000.0, 0, 100);
+        // Lệch <5%, không rủi ro, lãi >10% -> XANH
+        let (status, reason) = determine_project_status(0.5, 15.0, 0, 100);
         assert_eq!(status, "XANH");
         assert!(reason.contains("Ổn định"));
-        assert!(reason.contains("0.5%"));
     }
 
     #[test]
     fn test_determine_project_status_green_low_risk() {
-        // Lệch 5%, rủi ro 4% -> XANH
-        let (status, reason) = determine_project_status(5.0, 1_000_000.0, 4, 100);
+        // Lệch 4%, ít rủi ro, lãi tốt -> XANH
+        let (status, _reason) = determine_project_status(4.0, 12.0, 0, 100);
         assert_eq!(status, "XANH");
-        assert!(reason.contains("Tạm ổn"));
     }
 
     #[test]
     fn test_determine_project_status_yellow_medium() {
-        // Lệch 8%, rủi ro 8% -> VÀNG
-        let (status, reason) = determine_project_status(8.0, 1_000_000.0, 8, 100);
+        // Lệch 8% (5-15%) -> VÀNG
+        let (status, reason) = determine_project_status(8.0, 12.0, 2, 100);
         assert_eq!(status, "VÀNG");
         assert!(reason.contains("Cần theo dõi"));
     }
 
     #[test]
-    fn test_determine_project_status_yellow_high() {
-        // Lệch 15%, rủi ro cao -> VÀNG
-        let (status, reason) = determine_project_status(15.0, 1_000_000.0, 20, 100);
-        assert_eq!(status, "VÀNG");
-        assert!(reason.contains("Cảnh báo"));
+    fn test_determine_project_status_red_by_deviation() {
+        // Lệch 15% -> ĐỎ (threshold changed from 20% to 15%)
+        let (status, _reason) = determine_project_status(15.0, 12.0, 3, 100);
+        assert_eq!(status, "ĐỎ");
     }
 
     #[test]
-    fn test_determine_project_status_red() {
-        // Lệch >20% -> ĐỎ
-        let (status, reason) = determine_project_status(25.0, 1_000_000.0, 30, 100);
+    fn test_determine_project_status_red_by_loss() {
+        // Lỗ (profit <= 0) -> ĐỎ
+        let (status, reason) = determine_project_status(8.0, -2.0, 2, 100);
         assert_eq!(status, "ĐỎ");
         assert!(reason.contains("Nguy cơ"));
     }
 
     #[test]
     fn test_determine_project_status_edge_case_zero_rows() {
-        // Edge case: không có dữ liệu
-        let (status, _) = determine_project_status(5.0, 1_000_000.0, 0, 0);
-        assert_eq!(status, "XANH");
+        // Edge case: lệch nhẹ, có lãi
+        let (status, _) = determine_project_status(5.0, 12.0, 0, 0);
+        // Với 5% và profit 12%, nên là VÀNG (>= 5%)
+        assert_eq!(status, "VÀNG");
     }
 
     // --- TEST 2: Column Detection (Vietnamese) ---

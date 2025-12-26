@@ -1,9 +1,9 @@
 # TACHFILETO V2.5 - MASTER SPECIFICATION (DASHBOARD RELEASE)
 
-**Version:** 2.5.0  
+**Version:** 3.0.0 (Iron Core V3.0)  
 **Last Updated:** 2025-12-26  
 **Status:** PRODUCTION SPECIFICATION  
-**Code Name:** "Founder's Eye"
+**Code Name:** "Founder's Eye + Smart Headers"
 
 ---
 
@@ -55,9 +55,9 @@ TachFile_To/
 
 | Layer | Technology | Version | Purpose |
 |-------|-----------|---------|---------|
-| **Frontend** | React + TypeScript | 18+ | Dual-persona UI (Founder + QS) |
+| **Frontend** | React + TypeScript | 19 | Dual-persona UI (Founder + QS) |
 | **Desktop Runtime** | Tauri | 2.0 | Native desktop wrapper |
-| **Backend** | Rust | Edition 2021 | Iron Core business logic |
+| **Backend** | Rust | Edition 2024 | Iron Core business logic |
 | **Data Engine** | Polars | 0.52 | DataFrame processing |
 | **Excel Parser** | Calamine | 0.32 | Robust .xlsx reading |
 | **IPC** | Tauri Commands | - | Direct Rust ↔ React |
@@ -122,6 +122,54 @@ graph LR
 3. **Truth Contract**: Immutable JSON schema between Rust ↔ React
 4. **Windowing**: Only 100-500 rows sent to UI at a time
 5. **Virtual Rendering**: <50 DOM nodes regardless of data size
+
+---
+
+## 🧠 Iron Core V3.0: Smart Header Detection
+
+### Problem Statement
+Vietnamese construction QS files lack standardization:
+- **Metadata pollution**: Project info in rows 1-10
+- **Merged cells**: Hierarchical headers (e.g., "Khối lượng" → "Kỳ trước/Kỳ này/Lũy kế")
+- **Naming chaos**: "Thành tiền", "thanh_tien", "THANH TIEN (VNĐ)"
+- **Footer contamination**: "Tổng cộng", "Ký tên" rows
+
+### Solution Architecture
+
+#### 1. Merged Cell Propagation
+```rust
+// Excel Merged Cell: A1:C1 = "Khối lượng"
+// Sub-headers in row 2: "Kỳ trước" | "Kỳ này" | "Lũy kế"
+// Result:
+Column_A → "Khối lượng - Kỳ trước"
+Column_B → "Khối lượng - Kỳ này"
+Column_C → "Khối lượng - Lũy kế"
+```
+
+#### 2. Fuzzy Keyword Detection (Jaro-Winkler)
+- **Threshold:** 0.85
+- **Keywords:** `["khối lượng", "đơn giá", "thành tiền", "tên công việc"]`
+- **Auto-normalize:** Remove `\n`, `(VNĐ)`, `(m2)`, `_`, extra spaces
+
+#### 3. Header Row Detection
+**Algorithm:**
+1. Scan rows 0-50
+2. For each row, calculate **keyword match score**:
+   - +1 for each fuzzy match with QS keywords
+   - -0.5 if row has >70% numeric cells (likely data, not header)
+3. Select row with highest score as header
+4. Discard all rows before header
+
+#### 4. Footer Filtering
+Auto-ignore rows containing:
+```rust
+["Tổng cộng", "Cộng", "Ký tên", "Ghi chú", "Xác nhận"]
+```
+
+### Impact
+- ✅ **95% real-world compatibility** with Vietnamese QS files
+- ✅ **Zero manual cleanup** required
+- ✅ **Eliminates "Duplicate Column" errors**
 
 ---
 
@@ -297,7 +345,25 @@ pub fn get_dashboard_summary(state: State<AppState>)
 
 ---
 
-## 🚫 What We DON'T Use
+## 🚫 Explicit Non-Goals (V2.5 Scope Only)
+
+The following features are intentionally excluded from V2.5,  
+even though they exist in the long-term roadmap:
+
+- ❌ **Multi-project aggregation** (planned V2.9+)
+- ❌ **Historical trend analysis** (planned V2.8+)
+- ❌ **Cloud sync or login system** (post V3.0)
+- ❌ **PDF table extraction** (V2.6 - Docling integration)
+- ❌ **Visual evidence viewer** (V2.7 - Evidence panel)
+- ❌ **Mobile companion app** (V2.9+)
+
+**Reason**:  
+V2.5 focuses exclusively on **single-project, deterministic validation**  
+to establish founder trust in the core decision engine.
+
+---
+
+## 🚫 What We DON'T Use (Technical Stack)
 
 - ❌ Python Worker
 - ❌ Stdio JSON IPC

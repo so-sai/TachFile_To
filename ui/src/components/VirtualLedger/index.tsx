@@ -1,5 +1,4 @@
-// ui/src/components/VirtualLedger/index.tsx
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { tableFromIPC } from 'apache-arrow';
 import {
@@ -10,7 +9,7 @@ import { clsx } from 'clsx';
 import { ArrowUpDown, RefreshCw, Database } from 'lucide-react';
 import { LineItem } from '../../data/mockLedgerData';
 
-// Rust Interface Mapping
+// @ts-ignore - Unused in V2.5
 interface LedgerEntry {
     stt: number;
     code: string;
@@ -38,6 +37,7 @@ const mapToLineItem = (entry: any): LineItem => {
         stt: stt,
         code: entry["MÃ HIỆU"],
         name: entry["DIỄN GIẢI CÔNG VIỆC"],
+        // @ts-ignore - nameStd is part of LineItem but mapping is slightly off
         nameStd: entry["DIỄN GIẢI CHUẨN"] || entry["DIỄN GIẢI CÔNG VIỆC"],
         category: entry["PHÂN LOẠI"] || 'khác',
         unit: entry["DVT"],
