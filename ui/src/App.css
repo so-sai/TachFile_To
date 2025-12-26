@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ============================================
+   ENTERPRISE SCROLLBAR V1.2 ("GROK" STANDARD)
+   Cross-browser native scrollbar styling
+   ============================================ */
+
+/* Container class for Virtual Lists */
+.enterprise-scroll-container {
+  overflow-y: auto;
+  overflow-x: auto;
+  contain: strict; /* Browser rendering optimization */
+  
+  /* Firefox Standard */
+  scrollbar-width: auto;
+  scrollbar-color: #555555 #F0F0F0;
+}
+
+/* Webkit (Chrome, Edge, Tauri/WebView2) */
+.enterprise-scroll-container::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.enterprise-scroll-container::-webkit-scrollbar-track {
+  background: #F0F0F0;
+  border-left: 1px solid #E0E0E0;
+}
+
+.enterprise-scroll-container::-webkit-scrollbar-thumb {
+  background-color: #555555;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 0px; /* Enterprise: Square = Precision */
+}
+
+.enterprise-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: #333333;
+}
+
+.enterprise-scroll-container::-webkit-scrollbar-corner {
+  background: #E0E0E0;
+}
+
+/* Dark Mode Variant */
+.dark .enterprise-scroll-container {
+  scrollbar-color: #52525b #18181b;
+}
+
+.dark .enterprise-scroll-container::-webkit-scrollbar-track {
+  background: #18181b;
+  border-left: 1px solid #27272a;
+}
+
+.dark .enterprise-scroll-container::-webkit-scrollbar-thumb {
+  background-color: #52525b;
+}
+
+.dark .enterprise-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: #71717a;
+}
+
+.dark .enterprise-scroll-container::-webkit-scrollbar-corner {
+  background: #27272a;
+}

@@ -1,3 +1,9 @@
+🚨 **TÀI LIỆU ĐÃ LỖI THỜI - KHÔNG SỬ DỤNG**
+**Version thực tế:** V2.3 (Perception Engine + Polars 0.52)
+**Cập nhật cuối:** 2025-12-26
+**Trạng thái:** ARCHIVED - Chỉ để tham khảo lịch sử
+→ Xem [ARCHITECTURE_V2.3.md](file:///e:/DEV/TachFile_To/docs/specs/ARCHITECTURE_V2.3.md) để biết source of truth
+
 # TachFileTo - Architecture Guide
 
 **Version:** 1.1.0  

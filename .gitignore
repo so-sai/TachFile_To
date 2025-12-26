@@ -1,11 +1,23 @@
+# Rust artifacts
 target/
+ui/src-tauri/target/
+Cargo.lock
+
+# Node artifacts
 node_modules/
-__pycache__/
-*.py[cod]
-.venv/
-*.log
-*.db
+dist/
+.env
+.env.*
+
+# OS/IDE junk
 .DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.new.*
+cargo
 .vscode/
-*.sqlite
-*.sqlite3
+.idea/
+
+# Tauri
+ui/src-tauri/gen/
