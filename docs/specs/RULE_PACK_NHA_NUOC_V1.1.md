@@ -117,6 +117,7 @@ struct DocumentMetadata {
 | D03 | 🟡 Warning | `tong_tam_ung - da_thu_hoi > 0` | "Còn {con_lai} tạm ứng chưa thu hồi" |
 | D03b | 🔴 Fatal | `da_thu_hoi > tong_tam_ung` | "Thu hồi ({thu}) > Tổng ứng ({ung})" |
 | D04 | 🟡 Warning | `phu_luc.evidence_van_ban.is_none()` | "Phụ lục {so_phu_luc} chưa có văn bản phê duyệt" |
+| D05 | 🟡 Warning | `category in [ChinhSach0Percent, UuDai5Percent] && vat_category_evidence.is_none()` | "VAT {0%/5%} cần có văn bản pháp lý đính kèm" |
 
 **Quan trọng:** Bất kỳ Fatal nào → Dashboard **ĐỎ TOÀN BỘ**.
 
@@ -220,6 +221,7 @@ struct Violation {
 - Rule D02b (Info VAT policy)
 - Rule D03b (Fatal thu hồi quá mức)
 - Rule D04 (Warning phụ lục thiếu evidence)
+- Rule D05 (Warning VAT 0%/5% thiếu văn bản pháp lý)
 - Field `ngay_thanh_toan` cho VAT rate
 - Test case 4,5,6
 
