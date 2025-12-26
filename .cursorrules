@@ -23,6 +23,7 @@ YOUR GOAL: Build "TachFileTo" - a local-first, high-performance desktop app for 
 4. **TDD MANDATE**: Write Unit Tests **BEFORE** implementation (Red -> Green -> Refactor).
 5. **Universal Support**: Use `open_workbook_auto` for both `.xls` and `.xlsx`.
 6. **Iron Core V3.0**: Always use Smart Header Detection (fuzzy matching, merged cell propagation).
+7. **Single-thread Enforcement**: NEVER open multiple browser tabs or duplicate processes if the target service is not confirmed "READY". Stop and report if environmental state is ambiguous.
 
 ## 🧠 IRON CORE V3.0 FEATURES (MANDATORY)
 - **Merged Cell Propagation**: Hierarchical headers like "Khối lượng" → "Kỳ trước/Kỳ này/Lũy kế"
@@ -55,3 +56,24 @@ Think step-by-step:
 4. Implement Rust Core with V3.0 features.
 5. Connect via Tauri Command.
 6. Build React UI last.
+
+---
+
+## 🛡️ CONSTITUTIONAL DOCUMENTS
+
+### README.md Protection
+`README.md` is **constitution-level**. Changes require **strong justification**.
+
+This file defines:
+- **WHY**: Core purpose and philosophy (immutable)
+- **WHAT**: Technical objectives and problems solved (immutable)
+
+This file does **NOT** define:
+- **HOW**: Implementation details (see `MASTER_*.md`)
+- **WHEN**: Version history (see `CHANGELOG.md`)
+
+Any proposed changes to `README.md` must:
+1. Preserve the "north star sentence"
+2. Maintain WHY/WHAT boundary
+3. Not introduce version numbers or implementation details
+4. Be reviewed by project owner

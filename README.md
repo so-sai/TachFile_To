@@ -1,142 +1,51 @@
-# TachFileTo V2.5 - Founder's Eye
+# 🛡️ TachFileTo
+**Deterministic Validation Engine for Vietnamese Construction Projects**
 
-**Pure Rust + React Desktop Application for Vietnamese Construction QS**
+A tool that extracts truth from chaos — not opinions.
 
-[![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
-[![Polars](https://img.shields.io/badge/Polars-0.52-blue.svg)](https://pola.rs/)
-[![Tauri](https://img.shields.io/badge/Tauri-2.0-green.svg)](https://tauri.app/)
+## 🎯 Mục Đích Cốt Lõi (The Core Purpose)
+TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượng** trong xây dựng. Nó giải quyết một vấn đề cụ thể:
 
----
+> **"Làm sao để nhanh chóng đối chiếu bảng khối lượng từ file PDF/Excel với thực tế, trước khi thanh toán?"**
 
-## 🎯 What is TachFileTo?
+## 🧩 Vấn Đề Nó Giải Quyết (Cụ Thể)
+**1. Xử lý Dữ Liệu Thô Từ Hiện Trường**
+*   **OCR & Trích xuất bảng từ PDF:** Tự động đọc file scan (kể cả file lớn >50MB), bản vẽ, hồ sơ chất lượng có bảng biểu.
+*   **Xử lý đa dạng định dạng:** Đọc file Excel hiện có, chuẩn hóa về một cấu trúc duy nhất.
+*   **Sửa lỗi font chữ Việt Nam:** Tự động phát hiện và chuyển đổi font TCVN3, VNI về Unicode.
 
-TachFileTo is a **deterministic decision engine** for construction project founders and quantity surveyors in Vietnam. It processes Excel/PDF data and provides:
+**2. Kiểm Tra Tính Hợp Lý & Cảnh Báo Rủi Ro**
+*   **Phát hiện sai lệch:** So sánh khối lượng giữa các giai đoạn, phát hiện chênh lệch bất thường.
+*   **Áp dụng quy tắc nghiệp vụ Việt Nam:** Tính toán lại theo đơn giá, định mức, kiểm tra làm tròn số.
+*   **Gắn bằng chứng trực quan:** Liên kết từng dòng dữ liệu với hình ảnh "evidence" được crop chính xác từ bản vẽ gốc.
 
-- 🚦 **Founder Dashboard**: RED/YELLOW/GREEN status with zero ambiguity
-- 📊 **Virtual Ledger**: Handle 1M+ rows with instant scrolling
-- 🇻🇳 **Vietnamese-First**: 100% localized for Vietnamese construction industry
-- ⚡ **Pure Rust Backend**: No Python, no dependencies, just speed
+**3. Trình Bày Cho Người Ra Quyết Định**
+*   **Giao diện Founder-first:** Từ bảng dữ liệu chi tiết (QS) tổng hợp thành tín hiệu rõ ràng: **An toàn / Cảnh báo / Nguy cơ**.
+*   **Truy xuất nguồn gốc trong 1 cú click:** Từ tín hiệu cảnh báo có thể drill-down ngay xuống dòng dữ liệu gốc và hình ảnh bằng chứng.
 
----
+## 🧠 Nguyên Tắc Thiết Kế Sắt Đá (Iron Core)
+1.  **Xác Định Trên Thông Minh (Determinism over Intelligence):** Cùng một đầu vào → luôn cho cùng một kết quả. Không có AI "phán đoán mù".
+2.  **Giao Diện Không Tính Toán (UI Never Thinks):** Mọi logic nghiệp vụ nằm trong Core (Rust). Frontend chỉ hiển thị.
+3.  **Ưu Tiên Hiệu Năng (Performance is a Feature):** Xử lý file lớn (>50MB) là chuyện bình thường. Không có spinner giả dối.
+4.  **Tôn Trọng Thực Tế Việt Nam (Vietnamese Reality First):** Thuật ngữ, cách tính toán, quy chuẩn xây dựng Việt Nam là ưu tiên hàng đầu.
 
-## 🚀 Quick Start
+## 🏗️ Nguyên Tắc Kiến Trúc
+*   **Core Deterministic:** Logic duy nhất được viết bằng Rust, đảm bảo tính xác định.
+*   **Desktop-First, Offline-First:** Ứng dụng chạy độc lập trên Windows, ưu tiên tốc độ và quyền riêng tư.
+*   **Contracts Rõ Ràng:** Giao tiếp giữa các module thông qua các data contract được định nghĩa chặt chẽ.
 
-### Prerequisites
-
-- [Rust](https://rustup.rs/) (2021 edition or later)
-- [Node.js](https://nodejs.org/) (v18+)
-- [pnpm](https://pnpm.io/) or npm
-
-### Development
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/TachFile_To.git
-cd TachFile_To
-
-# Install frontend dependencies
-cd ui
-npm install
-
-# Run in development mode
-npm run tauri dev
-```
-
-### Build for Production
-
-```bash
-cd ui
-npm run tauri build
-
-# Output: ui/src-tauri/target/release/tachfileto-core.exe
-```
+## 📖 Bản Đồ Tài Liệu
+*   **Trạng thái hệ thống & Chi tiết kỹ thuật:** Xem `docs/specs/MASTER_*.md`
+*   **Quy tắc giao diện:** Xem `docs/specs/UI_DESIGN_SYSTEM.md`
+*   **Lịch sử thay đổi:** Xem `CHANGELOG.md`
+*   **Các quyết định kiến trúc cũ:** Lưu trong `docs/archive/`
 
 ---
 
-## 📚 Architecture
+## ⚠️ Giới Hạn Trách Nhiệm
 
-```
-TachFile_To/
-├── ui/
-│   ├── src/                    # React Frontend
-│   │   ├── App.tsx            # Tab Navigation
-│   │   └── components/
-│   │       ├── DashboardMockup.tsx    # Founder Dashboard
-│   │       └── VirtualLedger/         # QS Data View
-│   └── src-tauri/             # Rust Backend
-│       ├── src/
-│       │   ├── excel_engine.rs    # Polars + Calamine
-│       │   ├── normalizer.rs      # Vietnamese terms
-│       │   └── dashboard.rs       # Business rules
-│       └── Cargo.toml
-└── docs/
-    └── specs/
-        ├── MASTER_V2.5_DASHBOARD.md   # Architecture
-        └── TRUTH_CONTRACT_V1.md       # API Schema
-```
-
-**Key Technologies**:
-- **Backend**: Rust 2021 + Polars 0.52 + Calamine 0.32
-- **Frontend**: React 18 + TypeScript + TanStack Virtual
-- **Desktop**: Tauri 2.0
+TachFileTo **không thay thế kỹ sư**, không tự động phê duyệt thanh toán — nó chỉ phơi bày sự thật để con người chịu trách nhiệm.
 
 ---
 
-## 🎨 Features
-
-### Founder Dashboard (V2.5)
-- **Deterministic Status**: SAFE/WARNING/CRITICAL based on hard rules
-- **Financial Overview**: Contract value, payments, projected profit
-- **Risk Prioritization**: Top 5 risks sorted by cost impact
-- **Action Items**: Prioritized tasks with deadlines
-
-### Data View (QS/PM)
-- **Virtual Ledger**: Scroll through millions of rows
-- **Auto-Normalization**: Vietnamese column names standardized
-- **Excel-like UX**: Native scrollbar, 32px rows, tabular numbers
-
----
-
-## 📖 Documentation
-
-- [Master Specification](docs/specs/MASTER_V2.5_DASHBOARD.md) - Complete architecture
-- [Truth Contract](docs/specs/TRUTH_CONTRACT_V1.md) - API schema
-- [Walkthrough](docs/walkthrough.md) - Implementation guide
-
----
-
-## 🗺️ Roadmap
-
-- ✅ **V2.5** (Current): Founder Dashboard + Tab Navigation
-- ⏳ **V2.6** (Q1 2026): PDF extraction (Docling integration)
-- ⏳ **V2.7** (Q1 2026): Evidence Viewer (visual verification)
-- ⏳ **V2.8** (Q2 2026): Export to Word/PDF
-
-See [MASTER_V2.5_DASHBOARD.md](docs/specs/MASTER_V2.5_DASHBOARD.md) for complete roadmap.
-
----
-
-## 🛡️ Philosophy
-
-> **"Dashboard không phải để xem. Dashboard là để quyết định."**
-
-TachFileTo follows the **Iron Core** principle:
-- UI has **zero logic** - only renders what Rust declares as truth
-- All calculations are **deterministic** and reproducible
-- Vietnamese construction terminology is **first-class**
-
----
-
-## 📝 License
-
-MIT License - See [LICENSE](LICENSE) for details
-
----
-
-## 🤝 Contributing
-
-This project is currently in active development for V2.5. Contributions welcome after initial release.
-
----
-
-**Built with ❤️ for Vietnamese construction industry**
+> **Triết lý cuối cùng:** "Bảng dashboard không phải để ngắm. Nó tồn tại để ra quyết định. Nếu TachFileTo chuyển màu đỏ, ai đó phải dừng lại và hành động."
