@@ -127,6 +127,19 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
+## 8. Agent Hallucination: Tab Overflow Incident
+
+**Issue:** AI Agents entering a looping state and opening multiple (10+) browser tabs when failing to connect to local services.
+**Root Cause:** Lack of state verification after failed terminal commands and failure to check `Exit Code` before proceeding to UI interaction.
+**Solution:**
+- Implement **Single-thread Enforcement** in `.cursorrules`.
+- ALWAYS verify the target port is active before attempting browser interaction.
+- If a terminal command (like `npm run tauri dev`) is not confirmed as "READY", do NOT attempt to open browser pages.
+
+**Best Practice:** Stop immediately if the environment state does not match expectations. Do not attempt "recursive repair" by opening more UI instances.
+
+---
+
 ## Summary Table (Modern Era)
 
 | Lesson | Severity | Status | Phase |
@@ -137,6 +150,8 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 | Tauri Arg Mapping | Medium | ✅ Solved | V2.5 |
 | Profit-Driven Status | Critical | ✅ Solved | V2.5 |
 | Rust 2024 Edition | Medium | ✅ Active | V2.5 |
+| Smart Header / Merged Cells | High | ✅ Solved | V3.0 |
+| Tab Overflow Prevention | Critical | ✅ Active | V3.0 |
 
 ---
 

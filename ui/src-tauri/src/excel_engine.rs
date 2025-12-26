@@ -51,14 +51,15 @@ fn propagate_merged_values(rows: &mut Vec<Vec<String>>) {
         let mut last_value = String::new();
         for cell in row.iter_mut() {
             if cell.trim().is_empty() && !last_value.is_empty() {
-                // Don't propagate to obviously data cells
+                // Propagate value from previous cell
+                *cell = last_value.clone();
             } else {
                 last_value = cell.clone();
             }
         }
     }
     
-    // Vertical propagation for header-like patterns (first few rows)
+    // Vertical propagation for header-purposes (not usually needed for data, but can help metadata)
     let header_scan_limit = std::cmp::min(10, rows.len());
     for col_idx in 0..rows.get(0).map(|r| r.len()).unwrap_or(0) {
         let mut last_value = String::new();
@@ -66,8 +67,7 @@ fn propagate_merged_values(rows: &mut Vec<Vec<String>>) {
             if let Some(row) = rows.get_mut(row_idx) {
                 if let Some(cell) = row.get_mut(col_idx) {
                     if cell.trim().is_empty() && !last_value.is_empty() {
-                        // Only propagate if the cell looks like it should be merged
-                        // (i.e., it's in a header area)
+                        *cell = last_value.clone();
                     } else {
                         last_value = cell.clone();
                     }
@@ -294,27 +294,28 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
     
     println!("   → Data rows after footer filter: {}", data_rows.len());
 
-    // 6. Clean and deduplicate column names
-    let mut final_headers: Vec<String> = Vec::new();
-    let mut name_counts: HashMap<String, usize> = HashMap::new();
+    // 6. --- FIX: LẤP ĐẦY HEADER TRỐNG (MERGED CELLS) ---
+    let mut filled_headers = Vec::new();
+    let mut last_valid_header = "Column".to_string();
 
-    for (idx, h) in raw_headers.iter().enumerate() {
-        let cleaned = clean_column_name(h);
-        
-        let base_name = if cleaned.is_empty() { 
-            format!("Column_{}", idx + 1) 
-        } else { 
-            cleaned
-        };
-        
-        let count = name_counts.entry(base_name.clone()).or_insert(0);
-        *count += 1;
-
-        if *count == 1 {
-            final_headers.push(base_name);
+    for h in raw_headers {
+        let current = clean_column_name(h);
+        if !current.is_empty() {
+            last_valid_header = current;
+            filled_headers.push(last_valid_header.clone());
         } else {
-            final_headers.push(format!("{}_{}", base_name, count));
+            // Nếu rỗng, dùng tên cột trước đó + hậu tố (VD: DonGia_sub)
+            filled_headers.push(format!("{}_sub", last_valid_header));
         }
+    }
+
+    // Xử lý trùng tên (Deduplicate)
+    let mut final_headers = Vec::new();
+    let mut name_counts: HashMap<String, usize> = HashMap::new();
+    for h in filled_headers {
+        let count = name_counts.entry(h.clone()).or_insert(0);
+        *count += 1;
+        final_headers.push(if *count == 1 { h } else { format!("{}_{}", h, count) });
     }
     
     println!("   → Final headers: {:?}", &final_headers[..std::cmp::min(5, final_headers.len())]);
