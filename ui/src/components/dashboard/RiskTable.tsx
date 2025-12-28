@@ -36,7 +36,7 @@ const RiskTable: React.FC<RiskTableProps> = ({ risks }) => {
                                 color: Math.abs(risk.deviation) >= 15 ? 'var(--neon-red)' : 'var(--neon-yellow)',
                                 fontWeight: '900'
                             }}>
-                                {risk.deviation > 0 ? '+' : ''}{risk.deviation.toFixed(1)}%
+                                {risk.deviation > 0 ? '+' : ''}{(risk.deviation ?? 0).toFixed(1)}%
                             </td>
                             <td style={{ textAlign: 'right', color: '#888', fontSize: '11px' }}>{risk.impact}</td>
                             <td style={{ textAlign: 'center' }}>

@@ -19,6 +19,7 @@ pub fn run() {
         .manage(ExcelAppState::default())
         .invoke_handler(tauri::generate_handler![
             excel_engine::excel_load_file,
+            excel_engine::excel_select_sheet,
             excel_engine::excel_get_window,
             excel_engine::excel_total_rows,
             dashboard::get_dashboard_summary,

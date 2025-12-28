@@ -35,60 +35,20 @@ interface DashboardSummary {
     };
 }
 
-// MOCK DATA FOR FOUNDER'S VERIFICATION
-const MOCK_DATA: DashboardSummary = {
-    status: "ĐỎ",
-    status_reason: "SAI LỆCH KHỐI LƯỢNG > 15% & LỢI NHUẬN < 0%",
-    top_risks: [
-        { description: "BÊ TÔNG MÓNG M250", deviation: 18.5, impact: "-450.000.000 ₫" },
-        { description: "CỐT THÉP CỘT D20", deviation: 12.2, impact: "-120.000.000 ₫" },
-        { description: "NHÂN CÔNG XÂY TƯỜNG", deviation: 9.8, impact: "-85.000.000 ₫" },
-        { description: "ĐÀO ĐẤT HỐ MÓNG", deviation: 22.1, impact: "-310.000.000 ₫" },
-        { description: "VẬN CHUYỂN PHẾ THẢI", deviation: 15.0, impact: "-45.000.000 ₫" },
-    ],
-    payment_progress: {
-        received: 12500000000,
-        total_contract: 25000000000,
-        percent: 50,
-        projected_profit: -120000000,
-        profit_percent: -0.5
-    },
-    pending_actions: [
-        "KIỂM TRA LẠI ĐƠN GIÁ BÊ TÔNG",
-        "RÀ SOÁT KHỐI LƯỢNG ĐÀO ĐẤT",
-        "TẠM DỪNG THANH TOÁN ĐỢT 3"
-    ],
-    metrics: {
-        total_rows: 12450,
-        total_amount: 25000000000,
-        avg_deviation: 15.4,
-        high_risk_count: 5,
-        critical_count: 3,
-        profit_margin_percent: -0.5,
-        last_updated: new Date().toISOString()
-    }
-};
-
 const DashboardFounder: React.FC = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [useMock, setUseMock] = useState(true); // Toggle for verification
 
     const loadDashboard = async () => {
-        if (useMock) {
-            setSummary(MOCK_DATA);
-            return;
-        }
-
         setLoading(true);
         setError(null);
         try {
             const result = await invoke<DashboardSummary>('get_dashboard_summary');
             setSummary(result);
-        } catch (err) {
-            console.warn("Could not load real data, falling back to mock", err);
-            setSummary(MOCK_DATA);
+        } catch (err: any) {
+            console.warn("Could not load real data", err);
+            setError(err.toString());
         } finally {
             setLoading(false);
         }
@@ -96,13 +56,17 @@ const DashboardFounder: React.FC = () => {
 
     useEffect(() => {
         loadDashboard();
-    }, [useMock]);
+    }, []);
 
     if (loading) {
         return (
-            <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="matrix-text animate-pulse" style={{ fontSize: '24px' }}>
-                    &gt; ĐANG TRÍCH XUẤT DỮ LIỆU TỪ LÕI THÉP...
+            <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
+                <div className="radar-container">
+                    <div className="radar-circle"></div>
+                    <div className="radar-sweep"></div>
+                    <div className="matrix-text animate-pulse" style={{ fontSize: '18px', marginTop: '120px', letterSpacing: '2px' }}>
+                        &gt; ĐANG TRÍCH XUẤT DỮ LIỆU TỪ LÕI THÉP...
+                    </div>
                 </div>
             </div>
         );
@@ -119,7 +83,19 @@ const DashboardFounder: React.FC = () => {
         );
     }
 
-    if (!summary) return null;
+    if (!summary || summary.metrics.total_rows === 0) {
+        return (
+            <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
+                <div className="radar-container" style={{ opacity: 0.6 }}>
+                    <div className="radar-circle"></div>
+                    <div className="radar-sweep" style={{ animationDuration: '4s' }}></div>
+                    <div className="matrix-text" style={{ fontSize: '14px', marginTop: '120px', color: 'var(--neon-blue)', letterSpacing: '4px' }}>
+                        &gt; CHỜ DỮ LIỆU ĐẦU VÀO [DRAG & DROP]...
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="cockpit-container">
@@ -129,46 +105,26 @@ const DashboardFounder: React.FC = () => {
                 <StatusPanel
                     status={summary.status}
                     reason={summary.status_reason}
-                    mock={useMock}
                 />
 
                 {/* THE VAULT */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                     <FinancialCard
-                        label="Tổng Doanh Thu (Hợp đồng)"
+                        label="DOANH THU"
                         value={summary.payment_progress.total_contract}
                     />
                     <FinancialCard
-                        label="Đã Thu Hồi (Thanh toán)"
+                        label="ĐÃ THU"
                         value={summary.payment_progress.received}
-                        subValue={`Tiến độ: ${summary.payment_progress.percent}%`}
+                        subValue={`Tiến độ: ${summary.payment_progress.percent.toFixed(1)}%`}
                     />
                     <FinancialCard
-                        label="Lợi Nhuận Dự Kiến (V2.5 logic)"
+                        label="LỢI NHUẬN"
                         value={summary.payment_progress.projected_profit}
                         subValue={`Tỷ suất: ${summary.payment_progress.profit_percent.toFixed(1)}%`}
                         color={summary.payment_progress.profit_percent > 10 ? 'var(--neon-green)' : (summary.payment_progress.profit_percent > 0 ? 'var(--neon-yellow)' : 'var(--neon-red)')}
                         isProfit={true}
                     />
-
-                    {/* MOCK TOGGLE FOOTER */}
-                    <div style={{ marginTop: 'auto', padding: '10px 0' }}>
-                        <button
-                            onClick={() => setUseMock(!useMock)}
-                            style={{
-                                width: '100%',
-                                background: 'none',
-                                border: '2px solid var(--steel)',
-                                color: '#444',
-                                fontSize: '10px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                padding: '4px'
-                            }}
-                        >
-                            {useMock ? 'KÍCH HOẠT DỮ LIỆU THẬT' : 'CHUYỂN SANG MÔ PHỎNG'}
-                        </button>
-                    </div>
                 </div>
             </div>
 

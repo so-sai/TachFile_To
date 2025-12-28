@@ -40,6 +40,22 @@ pub struct ExcelWindow {
     pub total_rows: usize,
 }
 
+/// V3.1: Response struct with sheet list for Sheet Selector feature
+#[derive(Debug, Serialize)]
+pub struct ExcelLoadResponse {
+    pub columns: Vec<String>,
+    pub data: Vec<Vec<String>>,
+    pub total_rows: usize,
+    pub sheets: Vec<String>,
+    pub current_sheet: String,
+}
+
+/// V3.1: AppState now stores current file path for sheet switching
+pub struct ExcelAppStateInternal {
+    pub df: Option<DataFrame>,
+    pub current_path: Option<String>,
+}
+
 // ============================================================
 // HELPER FUNCTIONS - ENTERPRISE GRADE
 // ============================================================
@@ -213,6 +229,37 @@ fn is_footer_row(row: &[String]) -> bool {
     })
 }
 
+/// V3.1: Find best sheet based on Vietnamese QS keywords
+fn find_best_sheet(sheet_names: &[String]) -> String {
+    const TARGET_KEYWORDS: &[&str] = &[
+        "khối lượng", "khoi luong", "dự toán", "du toan", "báo giá", "bao gia", "boq", "tổng hợp"
+    ];
+    const EXCLUDE_KEYWORDS: &[&str] = &[
+        "bìa", "bia", "ghi chú", "ghi chu", "thông tin", "thong tin", "cover", "note"
+    ];
+
+    // Priority 1: Target sheets
+    for sheet in sheet_names {
+        let lower = sheet.to_lowercase();
+        if TARGET_KEYWORDS.iter().any(|kw| lower.contains(kw)) {
+            println!("   ✔️ Sheet Selector: Found target sheet '{}'", sheet);
+            return sheet.clone();
+        }
+    }
+
+    // Priority 2: Non-excluded sheets (first one)
+    for sheet in sheet_names {
+        let lower = sheet.to_lowercase();
+        if !EXCLUDE_KEYWORDS.iter().any(|kw| lower.contains(kw)) {
+            println!("   ⚠️ Sheet Selector: Using fallback sheet '{}'", sheet);
+            return sheet.clone();
+        }
+    }
+
+    // Fallback: First sheet
+    sheet_names.first().cloned().unwrap_or_else(|| "Sheet1".to_string())
+}
+
 // --- 2. CORE ENGINE (PURE RUST) ---
 
 /// Đọc file Excel thô (Universal Support: .xls, .xlsx, .xlsb)
@@ -361,21 +408,31 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
 pub async fn excel_load_file(
     path: String,
     state: State<'_, ExcelAppState>,
-) -> Result<ExcelWindow, String> {
-    // 1. Đọc và parse Excel
-    let mut df = read_raw_excel(&path, None).map_err(|e| e.to_string())?;
+) -> Result<ExcelLoadResponse, String> {
+    // 1. Mở workbook để lấy danh sách sheet
+    let workbook = open_workbook_auto(&path).map_err(|e| e.to_string())?;
+    let sheet_names: Vec<String> = workbook.sheet_names().to_owned();
+    
+    println!("[V3.1 Sheet Selector] Available sheets: {:?}", sheet_names);
+    
+    // 2. Chọn sheet tốt nhất tự động
+    let target_sheet = find_best_sheet(&sheet_names);
+    
+    // 3. Đọc và parse Excel từ sheet đã chọn
+    let mut df = read_raw_excel(&path, Some(&target_sheet)).map_err(|e| e.to_string())?;
 
     println!(
-        "[Iron Core] Loaded {} rows, {} columns from {}",
+        "[Iron Core V3.1] Loaded {} rows, {} columns from sheet '{}' in {}",
         df.height(),
         df.width(),
+        target_sheet,
         path
     );
 
-    // 2. Tự động chuẩn hóa tên cột (QS Standards)
+    // 4. Tự động chuẩn hóa tên cột (QS Standards)
     let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
 
-    // 3. Metadata cho window ban đầu (100 dòng)
+    // 5. Metadata cho window ban đầu (100 dòng)
     let headers: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
     let total_rows = df.height();
     
@@ -392,14 +449,71 @@ pub async fn excel_load_file(
         window_data.push(row);
     }
 
-    // 4. Lưu vào RAM
+    // 6. Lưu vào RAM
     let mut state_guard = state.df.lock().map_err(|_| "Lỗi lock state".to_string())?;
     *state_guard = Some(df);
 
-    Ok(ExcelWindow {
+    Ok(ExcelLoadResponse {
         columns: headers,
         data: window_data,
         total_rows,
+        sheets: sheet_names,
+        current_sheet: target_sheet,
+    })
+}
+
+/// V3.1: Người dùng tự chọn sheet khác
+#[tauri::command]
+pub async fn excel_select_sheet(
+    path: String,
+    sheet_name: String,
+    state: State<'_, ExcelAppState>,
+) -> Result<ExcelLoadResponse, String> {
+    println!("[V3.1 Sheet Selector] User selected sheet: '{}'", sheet_name);
+    
+    // 1. Mở workbook để lấy danh sách sheet (cho response)
+    let workbook = open_workbook_auto(&path).map_err(|e| e.to_string())?;
+    let sheet_names: Vec<String> = workbook.sheet_names().to_owned();
+    
+    // 2. Đọc đích danh sheet người dùng chọn
+    let mut df = read_raw_excel(&path, Some(&sheet_name)).map_err(|e| e.to_string())?;
+
+    println!(
+        "[Iron Core V3.1] Switched to sheet '{}': {} rows x {} columns",
+        sheet_name,
+        df.height(),
+        df.width()
+    );
+
+    // 3. Tự động chuẩn hóa tên cột
+    let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
+
+    // 4. Metadata cho window
+    let headers: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let total_rows = df.height();
+    
+    let window_size = 100.min(total_rows);
+    let mut window_data = Vec::new();
+
+    for i in 0..window_size {
+        let mut row = Vec::new();
+        for col in &headers {
+            let val = df.column(col).and_then(|c| c.get(i)).map(|v| format!("{}", v)).unwrap_or_default();
+            row.push(val);
+        }
+        window_data.push(row);
+    }
+
+    // 5. Lưu vào RAM
+    let mut state_guard = state.df.lock().map_err(|_| "Lỗi lock state".to_string())?;
+    *state_guard = Some(df);
+
+    Ok(ExcelLoadResponse {
+        columns: headers,
+        data: window_data,
+        total_rows,
+        sheets: sheet_names,
+        current_sheet: sheet_name,
     })
 }
 

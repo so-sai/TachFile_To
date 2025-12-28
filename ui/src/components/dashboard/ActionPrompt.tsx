@@ -14,8 +14,8 @@ const ActionPrompt: React.FC<ActionPromptProps> = ({ actions }) => {
             gap: '16px',
             padding: '8px 16px'
         }}>
-            <div style={{ color: 'var(--neon-blue)', fontWeight: 'black', fontSize: '18px', fontFamily: 'Space Mono' }}>
-                &gt;
+            <div style={{ color: 'var(--neon-blue)', fontWeight: 'black', fontSize: '14px', fontFamily: 'Space Mono', letterSpacing: '1px', opacity: 0.8 }}>
+                &gt; LỆNH:
             </div>
 
             <div style={{ flex: 1, display: 'flex', gap: '12px', overflow: 'hidden' }}>

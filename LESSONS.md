@@ -1,4 +1,4 @@
-# LESSONS LEARNED - TachFileTo (Iron Core Era)
+# LESSONS LEARNED - app-tool-TachFileTo
 
 **Version:** 3.0.0 (Iron Core V3.0)  
 **Last Updated:** 2025-12-26  
@@ -6,7 +6,25 @@
 
 ---
 
-## 1. Polars 0.52 API Evolution (Series vs Column)
+## 🚫 ANTI-PATTERNS (Những sai lầm cần tránh)
+
+### Memory Management
+- **Đừng load toàn bộ file lớn vào RAM:** Với file >50MB, luôn dùng streaming/chunking thay vì `read_to_string()`.
+- **Rust target directory:** Thư mục `target/` có thể phình to 30-50GB. Chạy `cargo clean` định kỳ để giải phóng ổ cứng.
+
+### Encoding & Vietnamese Text
+- **Cẩn thận với font chữ Việt Nam:** Luôn xử lý TCVN3/VNI encoding. Không assume tất cả file đều UTF-8.
+- **Excel header detection:** Đừng assume row 0 là header. Vietnamese QS files có metadata ở 5-15 dòng đầu.
+
+### Rust Development
+- **Tránh `unwrap()` bừa bãi:** Luôn xử lý lỗi đúng cách với `Result<T, E>` và `Option<T>`.
+- **Polars 0.52:** Nhớ dùng `.into()` để convert `Series` → `Column` khi tạo DataFrame.
+
+---
+
+## 💥 PAST BUGS (Lịch sử lỗi đã sửa)
+
+### 1. Polars 0.52 API Evolution (Series vs Column)
 
 **Issue:** Compilation fails when passing a `Vec<Series>` to `DataFrame::new()`.
 **Root Cause:** In Polars 0.52, the `DataFrame::new()` constructor requires a `Vec<Column>`.
@@ -20,7 +38,7 @@ series_vec.push(series.into()); // Use .into() to convert Series to Column
 
 ---
 
-## 2. Universal Excel Engine (open_workbook_auto)
+### 2. Universal Excel Engine (open_workbook_auto)
 
 **Issue:** Legacy `.xls` files fail to load with "workbook.xml.rels not found" error when using `Xlsx` reader explicitly.
 **Root Cause:** Explicitly using `Xlsx` reader assumes the file is in modern OpenXML format. Many Vietnamese construction documents are in legacy Binary format (.xls).
@@ -33,7 +51,7 @@ let mut workbook = open_workbook_auto(file_path)?; // Intelligent detection
 
 ---
 
-## 3. Calamine 0.32 Feature "dates"
+### 3. Calamine 0.32 Feature "dates"
 
 **Issue:** Excel dates are read as raw numbers (e.g., 45678) instead of strings.
 **Root Cause:** Calamine requires the `dates` feature to be enabled in `Cargo.toml` to automatically handle Excel's internal date representation.
@@ -46,7 +64,7 @@ calamine = { version = "0.32", features = ["dates"] }
 
 ---
 
-## 4. Tauri Command Argument Mapping
+### 4. Tauri Command Argument Mapping
 
 **Issue:** `invoke('load_file', { path: '...' })` fails if the Rust function parameter is named `file_path`.
 **Root Cause:** Tauri mapping between Javascript and Rust is sensitive to parameter names.
@@ -59,7 +77,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
-## 5. Profit Margin as Status Driver
+### 5. Profit Margin as Status Driver
 
 **Issue:** Dashboard showed GREEN status despite 2% profit margin (highly risky).
 **Root Cause:** Initial logic only checked deviation and risk count, as profit margin was treated as "informational" only.
@@ -68,7 +86,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
-## 6. Rust Edition 2024 Transition
+### 6. Rust Edition 2024 Transition
 
 **Issue:** Future-proofing the "Iron Core" requires the latest edition.
 **Root Cause:** Efficiency and safety features in 2024 edition are critical for long-term maintenance.
@@ -77,7 +95,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
-## 7. Smart Header Detection V3.0 (The Vietnam Case)
+### 7. Smart Header Detection V3.0 (The Vietnam Case)
 
 **Issue:** Vietnamese construction QS files have inconsistent structures:
 - Headers may appear in row 5-15 (after project metadata)
@@ -89,7 +107,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 **Solution:** Implement **Iron Core V3.0 - Intelligent Excel Engine**
 
-### 7.1 Merged Cell Propagation
+#### 7.1 Merged Cell Propagation
 ```rust
 // When a merged cell spans columns A-C with value "Khối lượng"
 // Propagate to child columns: 
@@ -98,7 +116,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 // Column C → "Khối lượng - Lũy kế"
 ```
 
-### 7.2 Fuzzy Keyword Detection (Jaro-Winkler)
+#### 7.2 Fuzzy Keyword Detection (Jaro-Winkler)
 ```rust
 // Detect Vietnamese QS headers with threshold 0.85
 "khoi luong"     → matches "Khối lượng" (typo tolerance)
@@ -106,13 +124,13 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 "don gia"        → matches "Đơn giá" (spacing variant)
 ```
 
-### 7.3 Metadata Skipping Strategy
+#### 7.3 Metadata Skipping Strategy
 - Scan first 50 rows for "keyword density" score
 - Apply **Numeric Penalty**: Rows with >70% numbers are likely data, not headers
 - Detect header row based on highest keyword match count
 - Discard all rows before detected header
 
-### 7.4 Footer Filtering
+#### 7.4 Footer Filtering
 ```rust
 // Auto-ignore rows containing these patterns
 ["Tổng cộng", "Cộng", "Ký tên", "Ghi chú", "Xác nhận"]
@@ -127,7 +145,7 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
-## 8. Agent Hallucination: Tab Overflow Incident
+### 8. Agent Hallucination: Tab Overflow Incident
 
 **Issue:** AI Agents entering a looping state and opening multiple (10+) browser tabs when failing to connect to local services.
 **Root Cause:** Lack of state verification after failed terminal commands and failure to check `Exit Code` before proceeding to UI interaction.

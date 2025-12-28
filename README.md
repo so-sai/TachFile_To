@@ -35,10 +35,22 @@ TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượn
 *   **Contracts Rõ Ràng:** Giao tiếp giữa các module thông qua các data contract được định nghĩa chặt chẽ.
 
 ## 📖 Bản Đồ Tài Liệu
-*   **Trạng thái hệ thống & Chi tiết kỹ thuật:** Xem `docs/specs/MASTER_*.md`
-*   **Quy tắc giao diện:** Xem `docs/specs/UI_DESIGN_SYSTEM.md`
-*   **Lịch sử thay đổi:** Xem `CHANGELOG.md`
-*   **Các quyết định kiến trúc cũ:** Lưu trong `docs/archive/`
+
+### 📂 Cấu trúc dự án (IIP v1.0)
+*   **Hiến pháp dự án:** `.project-context/PROJECT_PROMPT.md` - Identity, Tech Stack, Boundaries
+*   **Quy tắc Agent:** `.project-context/AGENT_RULES.md` - Hướng dẫn làm việc với AI
+*   **Nhiệm vụ hiện tại:** `.project-context/ACTIVE_MISSION.md` - Tracking công việc đang làm
+*   **Bài học kinh nghiệm:** `LESSONS.md` - Anti-patterns và lỗi đã sửa
+
+### 📋 Specifications & Guides
+*   **Trạng thái hệ thống:** `docs/specs/MASTER_V3.0_DASHBOARD.md`
+*   **Quy tắc nghiệp vụ:** `docs/specs/RULE_PACK_NHA_NUOC_V1.1.md`
+*   **Giao thức IPC:** `docs/specs/IPC_PROTOCOL.md`
+*   **Hệ thống thiết kế UI:** `docs/specs/UI_DESIGN_SYSTEM.md`
+*   **Hợp đồng dữ liệu:** `docs/specs/TRUTH_CONTRACT_V1.md`
+*   **Hướng dẫn sử dụng:** `docs/GUIDE.md`
+*   **Lịch sử thay đổi:** `docs/CHANGELOG.md`
+*   **Tài liệu cũ (archived):** `.project-context/ARCHIVE/`
 
 ---
 

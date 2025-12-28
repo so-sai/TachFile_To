@@ -12,8 +12,9 @@
   --text-dim: #666666;
   --neon-cyan: #00f3ff;
   --neon-green: #00ff99;
-  --neon-red: #ff0055;
+   --neon-red: #ff0055;
   --neon-yellow: #ffcc00;
+  --neon-blue: #0088ff;
 }
 
 /* COCKPIT LAYOUT */

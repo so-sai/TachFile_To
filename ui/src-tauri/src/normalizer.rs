@@ -259,62 +259,67 @@ pub enum ColumnType {
 }
 
 impl TerminologyNormalizer {
-    /// Chuẩn hóa tên cột cho Dashboard
+    /// V3.1: THIẾT QUÂN LUẬT - Ép mọi tên cột thành ASCII snake_case chuẩn hệ thống
+    /// Sử dụng deunicode để chuyển đổi Vietnamese -> ASCII
     pub fn normalize_column_name(&self, column_name: &str) -> ColumnNormalizationResult {
-        let cleaned = column_name.trim().to_lowercase();
+        use deunicode::deunicode;
 
-        // Xóa ký tự đặc biệt nhưng giữ dấu tiếng Việt
-        let cleaned = cleaned
-            .chars()
-            .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '_')
-            .collect::<String>();
-
-        // MAP cho Dashboard Detection
-        let (normalized, col_type) = if cleaned.contains("thanh tien")
-            || cleaned.contains("thành tiền")
-            || cleaned.contains("tong cong")
-            || cleaned.contains("tổng cộng")
-            || cleaned.contains("tong_tien")
-            || cleaned.contains("thanh_tien")
-        {
-            ("thanh_tien".to_string(), ColumnType::Amount)
-        } else if cleaned.contains("tinh toan")
-            || cleaned.contains("tính toán")
-            || cleaned.contains("khoi luong tinh toan")
-            || cleaned.contains("khối lượng tính toán")
-            || cleaned.contains("du toan")
-            || cleaned.contains("dự toán")
-            || cleaned.contains("tinh_toan")
-            || cleaned.contains("kltt")
-        {
-            ("khoi_luong_tinh_toan".to_string(), ColumnType::Calculated)
-        } else if cleaned.contains("do luong")
-            || cleaned.contains("đo lường")
-            || cleaned.contains("khoi luong thuc te")
-            || cleaned.contains("khối lượng thực tế")
-            || cleaned.contains("thuc te")
-            || cleaned.contains("thực tế")
-            || cleaned.contains("do_luong")
-            || cleaned.contains("kltt")
-        {
-            ("khoi_luong_thuc_te".to_string(), ColumnType::Measured)
-        } else if cleaned.contains("trang thai")
-            || cleaned.contains("trạng thái")
-            || cleaned.contains("tinh trang")
-            || cleaned.contains("tình trạng")
-            || cleaned.contains("trang_thai")
-            || cleaned.contains("status")
-        {
-            ("trang_thai".to_string(), ColumnType::Status)
-        } else {
-            // Giữ nguyên nhưng chuẩn hóa format
-            let normalized = cleaned.replace(" ", "_").replace("-", "_");
-            (normalized, ColumnType::Other)
+        // 1. Chuẩn hóa triệt để: "HẠNG MỤC" -> "hang_muc"
+        let system_key = {
+            let no_accents = deunicode(column_name);
+            no_accents
+                .to_lowercase()
+                .chars()
+                .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+                .collect::<String>()
+                .split_whitespace()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join("_")
         };
+
+        // 2. Phân loại dựa trên Key đã "sạch" hoàn toàn (ASCII only)
+        let (final_key, col_type) = match system_key.as_str() {
+            k if k.contains("thanh_tien")
+                || k.contains("tong_cong")
+                || k.contains("thanh_toan") =>
+            {
+                ("thanh_tien".to_string(), ColumnType::Amount)
+            }
+            k if k.contains("don_gia") || k.contains("gia") && k.contains("don") => {
+                ("don_gia".to_string(), ColumnType::Amount)
+            }
+            k if k.contains("tinh_toan") || k.contains("kltt") || k.contains("du_toan") => {
+                ("khoi_luong_tinh_toan".to_string(), ColumnType::Calculated)
+            }
+            k if k.contains("thuc_te") || k.contains("do_luong") => {
+                ("khoi_luong_thuc_te".to_string(), ColumnType::Measured)
+            }
+            k if k.contains("trang_thai") || k.contains("status") => {
+                ("trang_thai".to_string(), ColumnType::Status)
+            }
+            k if k.contains("hang_muc") || k.contains("dien_giai") || k.contains("mo_ta") => {
+                ("hang_muc".to_string(), ColumnType::Other)
+            }
+            k if k.contains("khoi_luong") || k.contains("so_luong") => {
+                ("khoi_luong".to_string(), ColumnType::Other)
+            }
+            k if k.contains("don_vi") || k == "dvt" => ("don_vi".to_string(), ColumnType::Other),
+            k if k == "stt" || k == "tt" || k.contains("so_thu_tu") => {
+                ("stt".to_string(), ColumnType::Other)
+            }
+            k if k.contains("ghi_chu") => ("ghi_chu".to_string(), ColumnType::Other),
+            _ => (system_key.clone(), ColumnType::Other),
+        };
+
+        println!(
+            "[Column Normalizer V3.1] '{}' → '{}'",
+            column_name, final_key
+        );
 
         ColumnNormalizationResult {
             original_name: column_name.to_string(),
-            normalized_name: normalized,
+            normalized_name: final_key,
             column_type: col_type,
         }
     }

@@ -72,6 +72,11 @@ function App() {
   const parentRef = useRef<HTMLDivElement>(null);
   const fetchingPages = useRef(new Set<number>());
 
+  // V3.1: Sheet Selector State
+  const [filePath, setFilePath] = useState("");
+  const [sheets, setSheets] = useState<string[]>([]);
+  const [currentSheet, setCurrentSheet] = useState("");
+
   // Matrix Logs Sequence
   const matrixLogs = [
     "> KÍCH HOẠT LÕI THÉP (IRON CORE)...",
@@ -101,6 +106,7 @@ function App() {
 
   const processFile = async (path: string) => {
     setIsLoading(true);
+    setFilePath(path); // V3.1: Lưu path để đổi sheet
     let logIdx = 0;
     const logInterval = setInterval(() => {
       if (logIdx < matrixLogs.length) {
@@ -112,6 +118,8 @@ function App() {
     try {
       const response = await invoke<any>("excel_load_file", { path: path });
       setTotalRows(response.total_rows);
+      setSheets(response.sheets || []);
+      setCurrentSheet(response.current_sheet || "");
       setDataMap({});
       fetchingPages.current.clear();
       setHasData(true);
@@ -121,6 +129,23 @@ function App() {
     } finally {
       clearInterval(logInterval);
       setLoadingMsg("");
+      setIsLoading(false);
+    }
+  };
+
+  // V3.1: Hàm đổi Sheet
+  const changeSheet = async (sheetName: string) => {
+    if (!filePath) return;
+    setIsLoading(true);
+    setCurrentSheet(sheetName);
+    try {
+      const response = await invoke<any>("excel_select_sheet", { path: filePath, sheetName });
+      setTotalRows(response.total_rows);
+      setDataMap({});
+      fetchingPages.current.clear();
+    } catch (err) {
+      alert("Lỗi đọc sheet: " + err);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -209,8 +234,22 @@ function App() {
           </div>
         </div>
 
-        {/* 3. TRẠNG THÁI HỆ THỐNG - HIGH PRESSURE */}
+        {/* 3. TRẠNG THÁI HỆ THỐNG & SHEET SELECTOR */}
         <div className="flex items-center gap-4">
+          {/* V3.1: Sheet Selector Dropdown */}
+          {hasData && sheets.length > 1 && (
+            <div className="flex items-center gap-2 bg-gray-200 px-3 py-1">
+              <span className="text-xs font-black uppercase">SHEET:</span>
+              <select
+                value={currentSheet}
+                onChange={(e) => changeSheet(e.target.value)}
+                className="border-2 border-black bg-white text-black font-bold text-sm px-2 py-1 cursor-pointer"
+              >
+                {sheets.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
+
           <div className="bg-black text-[#00FF00] font-black px-4 py-2 text-xs uppercase tracking-widest border-2 border-black">
             IRON CORE: VALIDATED
           </div>

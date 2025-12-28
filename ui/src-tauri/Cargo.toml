@@ -1,37 +1,20 @@
 [package]
 name = "tachfileto-bin"
-version = "2.5.0"
-description = "High-performance Excel Processing Engine for Enterprise"
-authors = ["TachFileTo Engineering Team"]
+version = "3.1.1"
 edition = "2024"
+rust-version = "1.92.0"
+
+[dependencies]
+tauri = { version = "2.9", features = ["protocol-asset", "devtools"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+polars = { version = "0.52", features = ["lazy", "dtype-struct", "serde"] }
+calamine = { version = "0.32", features = ["dates"] }
+deunicode = "1.6"
 
 [lib]
 name = "tachfileto_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0", features = [] }
-
-[dependencies]
-tauri = { version = "2.0", features = [] }
-tauri-plugin-opener = "2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-tokio = { version = "1", features = ["full"] }
-static_assertions = "1.1"
-lazy_static = "1.4"
-strsim = "0.11"
-chrono = { version = "0.4", features = ["serde"] }
-
-# --- POLARS 0.52 PURE STACK ---
-polars = { version = "0.52", default-features = false, features = ["lazy", "json", "dtype-struct", "serde", "ipc"] }
-
-# Excel parsing via calamine (Polars Rust doesn't have native Excel reader)
-calamine = { version = "0.32", features = ["dates"] } 
-
-[dev-dependencies]
-tempfile = "3.10"
-
-[features]
-custom-protocol = ["tauri/custom-protocol"]
+tauri-build = "2.9"

@@ -1,9 +1,9 @@
 # TACHFILETO V3.0 - MASTER SPECIFICATION (IRON CORE RELEASE)
 
-**Version:** 3.0.0 (Iron Core Production)  
+**Version:** 3.1.0 (Iron Core Production + Sheet Selector)  
 **Last Updated:** 2025-12-26  
 **Status:** ✅ PRODUCTION READY  
-**Code Name:** "Smart Header + Dual Persona"
+**Code Name:** "Smart Header + Dual Persona + Sheet Selector"
 
 ---
 
@@ -11,11 +11,13 @@
 
 TachFileTo V3.0 is a **Pure Rust + React 19** desktop application. This release achieves the "Iron Core" standard: absolute stability in reading Vietnamese Construction Excel files, regardless of formatting inconsistencies.
 
-### 🚀 V3.0 Achievements (Deployed)
+### 🚀 V3.1 Achievements (Deployed)
 - ✅ **Smart Header Detection**: Auto-skips metadata rows to find the true table header.
 - ✅ **Merged Cell Propagation**: Automatically fills sub-headers (e.g., "Đơn giá" -> "Đơn giá_sub").
 - ✅ **Money Cleaner**: Intelligently parses Vietnamese currency strings (`80,000,000` -> `80000000.0`).
 - ✅ **Dual-Theme UI**: Switch between **Enterprise Clean** (Day) and **Brutalist Neon** (Night).
+- ✅ **Sheet Selector**: Dropdown to switch between sheets in multi-sheet Excel files.
+- ✅ **Honest Mode**: No hardcoded fallback data - displays real values only.
 - ✅ **Zero Python**: 100% Rust Backend (Polars 0.52 + Calamine 0.32).
 
 ---
@@ -38,9 +40,15 @@ TachFile_To/
 │       │   ├── excel_engine.rs     # Smart Header & Universal Reader
 │       │   ├── dashboard.rs        # Logic: Profit & Deviation Rules
 │       │   └── normalizer.rs       # Vietnamese Terminology Engine
-└── docs/
-    └── specs/MASTER_V2.5_DASHBOARD.md (This File)
+    └── specs/MASTER_V3.0_DASHBOARD.md (This File)
 ```
+
+---
+
+## 🔗 Internal Navigation
+- [GUIDE.md](file:///e:/DEV/TachFile_To/docs/GUIDE.md) - Project Orientation & Architecture
+- [LESSONS_LEARNED.md](file:///e:/DEV/TachFile_To/docs/LESSONS_LEARNED.md) - Crucial Learnings & Failure Modes
+- [TRUTH_CONTRACT_V1.md](file:///e:/DEV/TachFile_To/docs/specs/TRUTH_CONTRACT_V1.md) - Data Schema Contract
 
 ---
 
@@ -95,6 +103,7 @@ The status is determined **exclusively** by Profit Margin and Deviation.
 | Status | Color | Rule |
 | :--- | :--- | :--- |
 | **SAFE** | 🟢 Green | Revenue > 0 AND (No critical risks OR Profit > 10%) |
+| **BÁO GIÁ** | 🔵 Blue | Revenue > 0 AND (Cost == 0 AND Paid == 0) |
 | **WARNING** | 🟡 Yellow | Revenue = 0 OR (Profit < 10% AND Profit > 0) |
 | **CRITICAL** | 🔴 Red | Profit <= 0 OR Critical Deviation > 15% |
 

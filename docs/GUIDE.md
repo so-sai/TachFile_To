@@ -11,7 +11,7 @@
 Nếu có bất kỳ sự xung đột nào giữa các tài liệu, thứ tự ưu tiên sẽ là:
 
 1. **`GUIDE.md`** (Chính là file này): Định hướng chiến lược và quy tắc AI.
-2. **`specs/MASTER_V2.5_DASHBOARD.md`**: Trạng thái thực thi kỹ thuật và Roadmap hiện tại.
+2. **`specs/MASTER_V3.0_DASHBOARD.md`**: Trạng thái thực thi kỹ thuật và Roadmap hiện tại.
 3. **`specs/TRUTH_CONTRACT_V1.md`**: Giao ước dữ liệu Rust ↔ React.
 4. **`specs/archive/`**: Nghĩa địa của các ý tưởng cũ (Không được sử dụng để code).
 
@@ -33,7 +33,7 @@ Dành cho các AI Agent tham gia vào dự án này:
 - **Ngôn ngữ**: 100% tiếng Việt cho UI, thông báo, và error messages.
 - **Truth Contract**: Rust PHẢI tính toán logic, React CHỈ hiển thị.
 - **Deterministic**: Không AI/ML, chỉ thuật toán rõ ràng.
-- **Đọc Spec trước khi code**: Luôn xem `MASTER_V2.5_DASHBOARD.md` trước khi đề xuất thay đổi.
+- **Đọc Spec trước khi code**: Luôn xem `MASTER_V3.0_DASHBOARD.md` trước khi đề xuất thay đổi.
 
 ---
 
@@ -136,10 +136,10 @@ TachFile_To/
     ├── CHANGELOG.md                # Version history
     ├── LESSONS_LEARNED.md          # Founder notes
     └── specs/
-        ├── MASTER_V2.5_DASHBOARD.md   # Technical spec (V2.5)
+        ├── MASTER_V3.0_DASHBOARD.md   # Technical spec (V3.0)
         ├── TRUTH_CONTRACT_V1.md       # Iron Core ↔ UI Schema
         ├── IPC_PROTOCOL.md            # (Legacy - for reference)
-        └── archive/                   # Legacy specs (v1.x, v2.1-2.4)
+        └── archive/                   # Legacy specs (v1.x, v2.1-2.5)
 ```
 
 ---
@@ -244,8 +244,8 @@ Việc hệ thống hóa ngay từ đầu giúp dự án của bạn có tầm v
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 3.0.0 | 2025-12-26 | Iron Core V3.0: Smart Header Detection, Merged Cell Propagation, Fuzzy Matching |
-| 2.5.0 | 2025-12-26 | Iron Core orientation, React 19, Non-Goals V2.5 |
+| 3.0.0 | 2025-12-26 | Iron Core V3.0: Smart Header Detection, Merged Cell Propagation, Fuzzy Matching, UI Purification |
+| 2.5.0 | 2025-12-26 | Iron Core orientation, React 19, Non-Goals V2.5 (Archived) |
 | 2.4.0 | 2025-12-25 | Polars 0.52 upgrade, Calamine 0.32 |
 | 2.3.0 | 2025-12-24 | Pure Rust stack, removed Python |
 | 1.1.0 | 2025-12-25 | ARCHIVED - Python Worker era |
@@ -253,5 +253,5 @@ Việc hệ thống hóa ngay từ đầu giúp dự án của bạn có tầm v
 ---
 
 **For detailed technical specifications, navigate to:**
-- [MASTER_V2.5_DASHBOARD.md](file:///e:/DEV/TachFile_To/docs/specs/MASTER_V2.5_DASHBOARD.md) - Technical spec
+- [MASTER_V3.0_DASHBOARD.md](file:///e:/DEV/TachFile_To/docs/specs/MASTER_V3.0_DASHBOARD.md) - Technical spec
 - [TRUTH_CONTRACT_V1.md](file:///e:/DEV/TachFile_To/docs/specs/TRUTH_CONTRACT_V1.md) - Data contract

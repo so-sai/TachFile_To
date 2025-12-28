@@ -21,3 +21,6 @@ cargo
 
 # Tauri
 ui/src-tauri/gen/
+
+# IIP v1.0 - Active mission tracking (local only)
+.project-context/ACTIVE_MISSION.md

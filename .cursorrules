@@ -5,7 +5,7 @@ YOUR GOAL: Build "TachFileTo" - a local-first, high-performance desktop app for 
 
 ## 🧠 CONTEXT & TRUTH
 1. **ALWAYS READ** `docs/GUIDE.md` first. It is the SINGLE SOURCE OF TRUTH.
-2. **CHECK SPECS** in `docs/specs/MASTER_V2.5_DASHBOARD.md` before coding.
+2. **CHECK SPECS** in `docs/specs/MASTER_V3.0_DASHBOARD.md` before coding.
 3. **READ MODERN LESSONS** in `docs/LESSONS_LEARNED.md`. Ignore anything in `archive/`.
 4. **NO HALLUCINATION**: Do not suggest Python, Cloud Sync, or Features marked as "Non-Goals".
 

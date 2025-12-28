@@ -24,7 +24,8 @@ pub struct DashboardSummary {
 #[derive(Debug, Serialize, Clone)]
 pub struct RiskItem {
     pub description: String,
-    pub value: String,
+    pub deviation: f64,
+    pub impact: String,
     pub severity: String,
 }
 
@@ -213,14 +214,11 @@ fn detect_risks(df: &DataFrame, columns: &[String]) -> (Vec<RiskItem>, usize) {
                             if val.abs() > 10.0 {
                                 high_risk_count += 1;
 
-                                if risks.len() < 3 {
+                                if risks.len() < 5 {
                                     risks.push(RiskItem {
-                                        description: format!(
-                                            "Hạng mục {} - Lệch {:.1}%",
-                                            i + 1,
-                                            val
-                                        ),
-                                        value: format!("{:.0} VND", val * 1_000_000.0),
+                                        description: format!("Hạng mục {}", i + 1),
+                                        deviation: val,
+                                        impact: format!("{:.0} VND", val * 1_000_000.0),
                                         severity: if val.abs() > 20.0 {
                                             "HIGH".to_string()
                                         } else {
@@ -240,7 +238,8 @@ fn detect_risks(df: &DataFrame, columns: &[String]) -> (Vec<RiskItem>, usize) {
     if risks.is_empty() {
         risks.push(RiskItem {
             description: "Không phát hiện lệch lớn".to_string(),
-            value: "-".to_string(),
+            deviation: 0.0,
+            impact: "0 VND".to_string(),
             severity: "LOW".to_string(),
         });
     }
@@ -264,8 +263,15 @@ fn determine_project_status(
     // LOGIC KHỚP SPEC V2.5 (với status tiếng Việt cho thị trường VN)
     
     // ĐỎ (CRITICAL): Lệch >= 15% HOẶC nhiều rủi ro HOẶC lỗ
-    // KIỂM TRA ĐỎ TRƯỚC để đảm bảo threshold 15% được ưu tiên
     if diff_percent >= 15.0 || high_risk_count >= 5 || profit_margin_percent <= 0.0 {
+        // Special case for Quotation (only revenue data)
+        if diff_percent == 0.0 && high_risk_count == 0 && profit_margin_percent == 0.0 {
+             return (
+                "BÁO GIÁ".to_string(),
+                "CHỈ CÓ DỮ LIỆU BÁO GIÁ - CHƯA CÓ SỐ LIỆU THI CÔNG".to_string(),
+            );
+        }
+
         return (
             "ĐỎ".to_string(),
             format!(
@@ -348,11 +354,8 @@ fn calculate_payment_progress(df: &DataFrame, columns: &[String]) -> PaymentProg
         }
     }
 
-    // Fallback nếu không tìm thấy cột
-    if total_contract == 0.0 {
-        total_contract = 1_000_000_000.0;
-        received = 600_000_000.0;
-    }
+    // Honest Mode: No more hardcoded fallbacks.
+    // If columns are missing, we respect the reality (0.0).
 
     let percent = if total_contract > 0.0 {
         received / total_contract * 100.0
