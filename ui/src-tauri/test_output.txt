@@ -1,0 +1,23 @@
+   Compiling polars-ops v0.52.0
+   Compiling webview2-com-sys v0.38.0
+   Compiling tao v0.34.5
+   Compiling tachfileto-bin v3.1.1 (E:\DEV\app-tool-TachFileTo\ui\src-tauri)
+error: failed to run custom build command for `tachfileto-bin v3.1.1 (E:\DEV\app-tool-TachFileTo\ui\src-tauri)`
+
+Caused by:
+  process didn't exit successfully: `E:\DEV\app-tool-TachFileTo\target\debug\build\tachfileto-bin-ee19db3cf81bb4f4\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=TAURI_CONFIG
+  cargo:rustc-check-cfg=cfg(desktop)
+  cargo:rustc-cfg=desktop
+  cargo:rustc-check-cfg=cfg(mobile)
+  cargo:rerun-if-changed=E:\DEV\app-tool-TachFileTo\ui\src-tauri\tauri.conf.json
+  cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME=tauri_app
+  cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX=com_admin
+  cargo:rustc-check-cfg=cfg(dev)
+  cargo:rustc-cfg=dev
+
+        The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+        Please run `tauri dev` or `tauri build` or remove the `protocol-asset` feature.
+      
+warning: build failed, waiting for other jobs to finish...

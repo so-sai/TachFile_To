@@ -11,7 +11,7 @@ interface RiskTableProps {
     smoothScroll?: boolean;
 }
 
-const RiskTable: React.FC<RiskTableProps> = ({ risks, smoothScroll = false }) => {
+const RiskTable: React.FC<RiskTableProps> = ({ risks, smoothScroll: _smoothScroll = false }) => {
     return (
         <div className="brutal-box" style={{ height: '100%', borderColor: 'var(--steel)' }}>
             <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -4,6 +4,47 @@
  */
 
 :root {
+  /* === SOFT-PAPER MODE: Cognitive Latency V2.1 === */
+
+  /* Background: Warm gray reduces glare, maintains readability */
+  --paper-bg: #FAFAFA;
+  /* Soft white (anti-glare) */
+  --paper-surface: #F5F5F5;
+  /* Slightly darker surface */
+
+  /* Text: High contrast without harshness */
+  --ink-primary: #1F2937;
+  /* Gray-800 */
+  --ink-secondary: #6B7280;
+  /* Gray-500 */
+  --ink-tertiary: #9CA3AF;
+  /* Gray-400 */
+
+  /* Semantic Colors: Binary signaling with symbols */
+  --danger-color: #DC2626;
+  /* Red-600 */
+  --danger-bg: #FEF2F2;
+  /* Red-50 */
+  --danger-symbol: "⚠️";
+
+  --safe-color: #059669;
+  /* Green-600 */
+  --safe-bg: #ECFDF5;
+  /* Green-50 */
+  --safe-symbol: "✓";
+
+  --warning-color: #D97706;
+  /* Amber-600 */
+  --warning-bg: #FFFBEB;
+  /* Amber-50 */
+  --warning-symbol: "⚡";
+
+  --info-color: #2563EB;
+  /* Blue-600 */
+  --info-bg: #EFF6FF;
+  /* Blue-50 */
+
+  /* Legacy Dark Mode Variables (for backward compatibility) */
   --black: #0a0a0a;
   --panel: #111111;
   --steel: #1a1a1a;
@@ -12,7 +53,7 @@
   --text-dim: #666666;
   --neon-cyan: #00f3ff;
   --neon-green: #00ff99;
-   --neon-red: #ff0055;
+  --neon-red: #ff0055;
   --neon-yellow: #ffcc00;
   --neon-blue: #0088ff;
 }
@@ -150,4 +191,47 @@ button:hover {
 
 button:active {
   transform: scale(0.98);
+}
+
+/* === COGNITIVE TYPOGRAPHY STANDARDS === */
+
+/* Numbers: Tabular alignment for easy scanning */
+.cognitive-number {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  letter-spacing: -0.02em;
+}
+
+/* Financial data: Always right-aligned, monospace */
+.financial-value {
+  font-family: 'JetBrains Mono', 'Space Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* QS Abbreviations: Uppercase, tracked */
+.qs-abbreviation {
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+/* Cognitive signaling: Color + Symbol */
+.cognitive-danger::before {
+  content: var(--danger-symbol);
+  margin-right: 0.25rem;
+}
+
+.cognitive-safe::before {
+  content: var(--safe-symbol);
+  margin-right: 0.25rem;
+}
+
+.cognitive-warning::before {
+  content: var(--warning-symbol);
+  margin-right: 0.25rem;
 }

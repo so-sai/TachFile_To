@@ -8,6 +8,10 @@ import FinancialCard from './dashboard/FinancialCard';
 import RiskTable from './dashboard/RiskTable';
 import ActionPrompt from './dashboard/ActionPrompt';
 
+// Cognitive Latency V2.1 Components
+import { ScrollAnchor, useScrollAnchor } from './cognitive/ScrollAnchor';
+import { applyGhosting, isGhostingAllowed } from '../lib/cognitive/GhostingEngine';
+
 interface DashboardSummary {
     status: string;
     status_reason: string;
@@ -37,8 +41,14 @@ interface DashboardSummary {
 
 const DashboardFounder: React.FC = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
-    const [isProcessing, setIsProcessing] = useState(false); // Replaces 'loading' for overlay state
+    const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Cognitive: Scroll anchor for spatial stability
+    const { anchorKey } = useScrollAnchor('row-0');
+
+    // Cognitive: Ghosting ref for data updates
+    const mainPanelRef = React.useRef<HTMLDivElement>(null);
 
     const loadDashboard = async () => {
         setIsProcessing(true);
@@ -48,6 +58,12 @@ const DashboardFounder: React.FC = () => {
 
         try {
             const result = await invoke<DashboardSummary>('get_dashboard_summary');
+
+            // Cognitive: Apply ghosting if allowed (fileUpload context)
+            if (mainPanelRef.current && isGhostingAllowed('dataRefresh')) {
+                applyGhosting(mainPanelRef.current, 'dataRefresh');
+            }
+
             setSummary(result);
             setError(null); // Clear error on success
         } catch (err: any) {
@@ -158,13 +174,16 @@ const DashboardFounder: React.FC = () => {
                 </div>
             </div>
 
+
             {/* THE RISK VECTOR */}
-            <div className="main-panel">
-                <RiskTable risks={summary.top_risks} smoothScroll={false} />
+            <div className="main-panel" ref={mainPanelRef} data-cognitive-zone="mainTable" data-attention-budget="70">
+                <ScrollAnchor dataKey={anchorKey} showIndicator={false}>
+                    <RiskTable risks={summary.top_risks} smoothScroll={false} />
+                </ScrollAnchor>
             </div>
 
             {/* THE ACTION BAR */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div style={{ gridColumn: 'span 2' }} data-cognitive-zone="alerts" data-attention-budget="10">
                 <ActionPrompt actions={summary.pending_actions} />
             </div>
         </div>
