@@ -6,9 +6,10 @@ interface FinancialCardProps {
     subValue?: string;
     color?: string;
     isProfit?: boolean;
+    animateCountUp?: boolean;
 }
 
-const FinancialCard: React.FC<FinancialCardProps> = ({ label, value, subValue, color = 'var(--white)', isProfit }) => {
+const FinancialCard: React.FC<FinancialCardProps> = ({ label, value, subValue, color = 'var(--white)', isProfit, animateCountUp = false }) => {
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
     };

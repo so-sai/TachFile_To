@@ -37,20 +37,24 @@ interface DashboardSummary {
 
 const DashboardFounder: React.FC = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false); // Replaces 'loading' for overlay state
     const [error, setError] = useState<string | null>(null);
 
     const loadDashboard = async () => {
-        setLoading(true);
-        setError(null);
+        setIsProcessing(true);
+        // Do NOT reset summary here. This is the key "State Memoization".
+        // setError(null); // Optional: do we clear error? Check user intent. Standard is yes, but maybe keep old error?
+        // User said: "KHÔNG reset data, chỉ set processing flag"
+
         try {
             const result = await invoke<DashboardSummary>('get_dashboard_summary');
             setSummary(result);
+            setError(null); // Clear error on success
         } catch (err: any) {
             console.warn("Could not load real data", err);
             setError(err.toString());
         } finally {
-            setLoading(false);
+            setIsProcessing(false);
         }
     };
 
@@ -58,7 +62,8 @@ const DashboardFounder: React.FC = () => {
         loadDashboard();
     }, []);
 
-    if (loading) {
+    // INITIAL LOADING STATE (Only if no data yet)
+    if (isProcessing && !summary && !error) {
         return (
             <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
                 <div className="radar-container">
@@ -72,7 +77,7 @@ const DashboardFounder: React.FC = () => {
         );
     }
 
-    if (error) {
+    if (error && !summary) {
         return (
             <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
                 <div className="brutal-box brutal-box-red w-full">
@@ -83,6 +88,7 @@ const DashboardFounder: React.FC = () => {
         );
     }
 
+    // EMPTY / WELCOME STATE
     if (!summary || summary.metrics.total_rows === 0) {
         return (
             <div className="cockpit-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
@@ -98,13 +104,34 @@ const DashboardFounder: React.FC = () => {
     }
 
     return (
-        <div className="cockpit-container">
+        <div className="cockpit-container" style={{ position: 'relative' }}>
+            {/* PROCESSING BADGE - OVERLAY */}
+            {isProcessing && (
+                <div className="processing-badge" style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '50%',
+                    transform: 'translateX(50%)',
+                    background: 'var(--neon-yellow)',
+                    color: '#000',
+                    padding: '4px 12px',
+                    fontWeight: '900',
+                    fontSize: '12px',
+                    zIndex: 1000,
+                    letterSpacing: '2px',
+                    boxShadow: '0 0 10px var(--neon-yellow)'
+                }}>
+                    [ĐANG TÍNH TOÁN...]
+                </div>
+            )}
+
             {/* SIDEBAR: VERDICT & VAULT */}
             <div className="sidebar">
                 {/* THE VERDICT */}
                 <StatusPanel
                     status={summary.status}
                     reason={summary.status_reason}
+                    pulse={false}
                 />
 
                 {/* THE VAULT */}
@@ -112,11 +139,13 @@ const DashboardFounder: React.FC = () => {
                     <FinancialCard
                         label="DOANH THU"
                         value={summary.payment_progress.total_contract}
+                        animateCountUp={false}
                     />
                     <FinancialCard
                         label="ĐÃ THU"
                         value={summary.payment_progress.received}
                         subValue={`Tiến độ: ${summary.payment_progress.percent.toFixed(1)}%`}
+                        animateCountUp={false}
                     />
                     <FinancialCard
                         label="LỢI NHUẬN"
@@ -124,13 +153,14 @@ const DashboardFounder: React.FC = () => {
                         subValue={`Tỷ suất: ${summary.payment_progress.profit_percent.toFixed(1)}%`}
                         color={summary.payment_progress.profit_percent > 10 ? 'var(--neon-green)' : (summary.payment_progress.profit_percent > 0 ? 'var(--neon-yellow)' : 'var(--neon-red)')}
                         isProfit={true}
+                        animateCountUp={false}
                     />
                 </div>
             </div>
 
             {/* THE RISK VECTOR */}
             <div className="main-panel">
-                <RiskTable risks={summary.top_risks} />
+                <RiskTable risks={summary.top_risks} smoothScroll={false} />
             </div>
 
             {/* THE ACTION BAR */}

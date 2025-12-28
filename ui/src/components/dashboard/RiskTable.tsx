@@ -8,9 +8,10 @@ interface RiskItem {
 
 interface RiskTableProps {
     risks: RiskItem[];
+    smoothScroll?: boolean;
 }
 
-const RiskTable: React.FC<RiskTableProps> = ({ risks }) => {
+const RiskTable: React.FC<RiskTableProps> = ({ risks, smoothScroll = false }) => {
     return (
         <div className="brutal-box" style={{ height: '100%', borderColor: 'var(--steel)' }}>
             <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -21,10 +22,10 @@ const RiskTable: React.FC<RiskTableProps> = ({ risks }) => {
             <table className="iron-table">
                 <thead>
                     <tr>
-                        <th>Hạng mục</th>
-                        <th style={{ textAlign: 'center' }}>Sai lệch (%)</th>
-                        <th style={{ textAlign: 'right' }}>Ảnh hưởng</th>
-                        <th style={{ textAlign: 'center' }}>Soi</th>
+                        <th style={{ color: '#888' }}>HẠNG MỤC</th>
+                        <th style={{ textAlign: 'center', color: '#D97706' }}>S.LỆCH</th>
+                        <th style={{ textAlign: 'right', color: '#888' }}>TÁC ĐỘNG</th>
+                        <th style={{ textAlign: 'center' }}>SOI</th>
                     </tr>
                 </thead>
                 <tbody>
