@@ -17,10 +17,14 @@ Agent bắt buộc phải tham chiếu các tài liệu sau trong `docs/specs/` 
 5. **Dashboard:** Đọc `docs/specs/MASTER_V3.0_DASHBOARD.md`.
 
 ## 3. BOUNDARIES (BIÊN GIỚI)
+- **Ecosystem Role:** Data Ingestion Organ (xem `docs/BOUNDARY_MANIFEST.md`)
 - **Phạm vi:** Chỉ xử lý logic trong `src-tauri` (Rust) và `src` (React).
+- **Integration:** Giao tiếp với iron_core qua `docs/specs/INGESTION_SCHEMA.json`
 - **Cấm:** 
   - Tuyệt đối không upload dữ liệu lên Cloud.
   - Không sửa các file trong `docs/specs/archive/`.
+  - **KHÔNG được tạo business logic hoặc ghi vào iron_core database.**
+  - **KHÔNG được lưu project metadata trong UI preferences.**
 - **An toàn:** Luôn chạy `cargo check` trước khi confirm code Rust.
 
 ## 4. DEFINITION OF DONE

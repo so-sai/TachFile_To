@@ -24,3 +24,17 @@ ui/src-tauri/gen/
 
 # IIP v1.0 - Active mission tracking (local only)
 .project-context/ACTIVE_MISSION.md
+
+# Phase 3 preparation - Database artifacts (enforce stateless architecture)
+*.db
+*.db-shm
+*.db-wal
+
+# Temporary extraction (PDF processing)
+temp/
+.cache/
+extraction_temp/
+
+# Ingestion objects (should not be committed - must be ephemeral)
+*.ingestion.json
+/temp/ingestion/
