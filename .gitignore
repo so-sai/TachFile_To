@@ -38,3 +38,7 @@ extraction_temp/
 # Ingestion objects (should not be committed - must be ephemeral)
 *.ingestion.json
 /temp/ingestion/
+
+# External Libraries (Noise Reduction)
+sqlcipher3/
+
