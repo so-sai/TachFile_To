@@ -1,8 +1,9 @@
 # LESSONS LEARNED - app-tool-TachFileTo
 
-**Version:** 3.0.0 (Iron Core V3.0)  
-**Last Updated:** 2025-12-26  
-**Status:** Production Ready - Smart Header Detection Active
+**Version:** 3.1.1 (IIP v1.1 + Iron Core V3.0)  
+**Last Updated:** 2026-01-10  
+**Status:** Production Ready - Smart Header Detection Active  
+**Governance:** IIP v1.1 Protocol
 
 ---
 

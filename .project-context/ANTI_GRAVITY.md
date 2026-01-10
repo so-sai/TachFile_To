@@ -257,3 +257,141 @@ We fail when:
 
 **This document is the gravitational force that keeps TachFileTo in its proper orbit.**  
 **Violating these principles is not a bug—it's an architectural failure.**
+
+---
+
+## VIII. TECHNOLOGY-SPECIFIC CONSTRAINTS
+
+### Rust Backend (Iron Core V3.0)
+
+**Edition & Toolchain:**
+- **Rust Edition:** 2024 (bleeding edge stability)
+- **Minimum Version:** 1.92.0
+- **Rationale:** Future-proofing with latest safety and efficiency features
+
+**Data Processing Stack:**
+- **Polars:** 0.52 (DataFrame engine for 1M+ rows)
+  - Use `.into()` to convert `Series` → `Column`
+  - Enable lazy evaluation for large datasets
+- **Calamine:** 0.32 (Excel parser)
+  - **MUST** enable `dates` feature in `Cargo.toml`
+  - Use `open_workbook_auto()` for universal .xls/.xlsx support
+
+**Smart Header Detection (Iron Core V3.0):**
+- **Fuzzy Matching:** Jaro-Winkler threshold ≥ 0.85 for Vietnamese QS terms
+- **Merged Cell Propagation:** Hierarchical headers (e.g., "Khối lượng" → "Kỳ trước/Kỳ này/Lũy kế")
+- **Metadata Skipping:** Scan rows 0-50, detect header via keyword density
+- **Numeric Penalty:** -0.5 score for rows with >70% numbers (likely data, not headers)
+- **Footer Filtering:** Auto-ignore rows with ["Tổng cộng", "Cộng", "Ký tên", "Ghi chú", "Xác nhận"]
+
+**Error Handling:**
+- **Mandatory:** Use `Result<T, E>` for all fallible operations
+- **Forbidden:** `unwrap()`, `expect()` without clear justification
+- **Preferred:** `anyhow` for application errors, custom types for domain errors
+
+---
+
+### React Frontend (Cockpit UI)
+
+**Framework & Language:**
+- **React:** 19.x (latest stable)
+- **TypeScript:** ~5.8.3 (strict mode enabled)
+- **Build Tool:** Vite 7.x
+- **State Management:** Zustand 5.x (minimal, predictable)
+
+**Design Language:**
+- **Style:** Brutalist/Enterprise (hard edges, zero ambiguity)
+- **Colors:** `#DC2626` (Red/ĐỎ), `#059669` (Green/XANH), `#F59E0B` (Yellow/VÀNG)
+- **Typography:** Monospace for numbers, Sans-serif for labels
+- **Density:** Enterprise-grade (32px row height, compact spacing)
+
+**Performance Requirements:**
+- **Virtual Scrolling:** Mandatory for 1M+ rows (TanStack Virtual)
+- **Response Time:** ≤ 100ms for all interactions (see `UI_LATENCY_CONTRACT.md`)
+- **Memory:** < 500MB for 1M rows
+- **Frame Rate:** 60fps during scrolling
+
+**Language:**
+- **UI Labels:** 100% Vietnamese (XANH/VÀNG/ĐỎ status)
+- **Error Messages:** Vietnamese with technical details in English (if needed)
+- **Abbreviations:** QS-standard (ĐG = Đơn giá, KL = Khối lượng, T.TIỀN = Thành tiền)
+
+---
+
+### Status Determination Rules (Business Logic)
+
+**Critical (ĐỎ):**
+- Deviation ≥ 15% **OR**
+- Risk count ≥ 5 **OR**
+- Profit margin ≤ 0%
+
+**Safe (XANH):**
+- Deviation < 5% **AND**
+- Risk count == 0 **AND**
+- Profit margin > 10%
+
+**Warning (VÀNG):**
+- Everything else
+
+**Rationale:** Financial health (profit) overrides operational metrics (deviation).
+
+---
+
+### Forbidden Technologies & Patterns
+
+**Absolutely Forbidden:**
+- ❌ **Python:** Exterminated in V2.3 (backend/ folder removed)
+- ❌ **STDIO IPC:** Use Tauri Commands only
+- ❌ **English Status Labels:** Must use XANH/VÀNG/ĐỎ
+- ❌ **Virtual Environments:** No venv, pip, or Python tooling
+- ❌ **Legacy Font Conversion:** TCVN3/VNI deferred to V2.6
+- ❌ **Cloud Sync/SaaS:** Desktop-first, offline-only architecture
+- ❌ **AI/ML Inference:** Deterministic algorithms only
+
+**Rationale:** These technologies either:
+1. Violate architectural principles (Python = non-deterministic)
+2. Create deployment complexity (Cloud = requires auth)
+3. Compromise performance (Legacy fonts = slow)
+
+---
+
+### Development Workflow
+
+**Running Application:**
+```bash
+cd ui
+npm run tauri dev
+# Expected: Vite dev server on port 1420, Tauri window launches
+```
+
+**Testing:**
+```bash
+cd ui/src-tauri
+cargo test --lib
+# Expected: 33/33 tests PASSING (Iron Core V3.0 validated)
+```
+
+**Building Production:**
+```bash
+cd ui
+npm run tauri build
+# Output: ui/src-tauri/target/release/tachfileto-core.exe
+```
+
+---
+
+### Single-Thread Enforcement
+
+**Rule:** Never open multiple browser tabs or duplicate processes if target service is not confirmed "READY".
+
+**Rationale:** Prevents AI agent hallucination loops (Tab Overflow Incident - see `LESSONS.md` #8)
+
+**Implementation:**
+1. Verify terminal command exit code before proceeding
+2. Check port availability before browser interaction
+3. Stop immediately if environment state is ambiguous
+
+---
+
+**These constraints are non-negotiable. Violating them requires Human Architect approval.**
+

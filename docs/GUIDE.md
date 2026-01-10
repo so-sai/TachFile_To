@@ -17,7 +17,11 @@ Nếu có bất kỳ sự xung đột nào giữa các tài liệu, thứ tự �
 
 ---
 
-## 🤖 2. Rules for AI Agents (Lá Chắn Chống Hallucination)
+## 🤖 2. Rules for AI Agents (IIP v1.1 Compliance)
+
+**Governance:** This project follows IIP v1.1 protocol.  
+**Core Philosophy:** See `.project-context/ANTI_GRAVITY.md`  
+**Mission Control:** See `.project-context/MISSION_CONTROL.json`
 
 Dành cho các AI Agent tham gia vào dự án này:
 
@@ -27,6 +31,9 @@ Dành cho các AI Agent tham gia vào dự án này:
 - **Giả định Cloud/SaaS**: Không code Login, Cloud Sync, hay bất kỳ tính năng nào trong **Non-Goals (V2.5 Scope Only)**.
 - **Khôi sinh Python Worker**: Python đã bị loại bỏ hoàn toàn. Không được đề xuất Python dưới mọi hình thức.
 - **Viết code Tiếng Anh cho UI**: Người dùng cuối là QS Việt Nam → 100% tiếng Việt.
+- **Vi phạm ANTI_GRAVITY.md**: Stateless, Least Privilege, Zero Business Logic principles.
+- **Bypass Skeptic**: All missions must pass AUDITING phase.
+- **Nhảy bước State Machine**: Must follow PLANNING → AUDITING → EXECUTING → TESTING → DONE.
 
 ### ✅ PHẢI TUÂN THỦ
 

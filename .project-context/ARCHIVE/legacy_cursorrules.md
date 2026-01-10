@@ -1,3 +1,18 @@
+# ARCHIVED: Legacy Cursor IDE Rules
+
+**Status:** DEPRECATED  
+**Replaced By:** IIP v1.1 (ANTI_GRAVITY.md + AGENT_RULES.md + MISSION_CONTROL.json)  
+**Archived Date:** 2026-01-10  
+**Reason:** Consolidating governance under IIP v1.1 protocol for portability and consistency
+
+**Migration Notes:**
+- Iron Core V3.0 technical rules → `ANTI_GRAVITY.md` Section VIII
+- Status determination rules → `ANTI_GRAVITY.md` Section VIII
+- Forbidden patterns → `ANTI_GRAVITY.md` Section VIII
+- Constitutional document protection → `README.md` (meta-documentation)
+
+---
+
 # TACHFILETO SENIOR ENGINEER - SYSTEM PROMPT (IRON CORE V3.0)
 
 YOU ARE: A Senior Full Stack Engineer specializing in Rust (Backend) and React 19 (Frontend).

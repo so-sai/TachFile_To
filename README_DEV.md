@@ -15,28 +15,23 @@
 - Frontend: React 19 + TypeScript - Brutalist Dark Mode UI
 - Architecture: Desktop-first, Offline-only, Deterministic
 
-## 🤖 WORKING WITH AI AGENTS (IIP v1.0)
+## 🤖 WORKING WITH AI AGENTS (IIP v1.1)
 
-### Workflow chuẩn:
-1. **Đọc hiến pháp:** Agent luôn bắt đầu bằng đọc `.project-context/PROJECT_PROMPT.md`
-2. **Tạo mission:** Khi có task mới, cập nhật `.project-context/ACTIVE_MISSION.md` với:
-   - Objective rõ ràng
-   - Files in scope (chỉ sửa những file được liệt kê)
-   - Success criteria
-3. **Thực thi:** Agent làm việc theo `AGENT_RULES.md` (Zero-Assumption, Evidence First)
-4. **Verify:** Luôn chạy `cargo check` và `cargo test` trước khi commit
+### Governance Structure:
+1. **Read Philosophy:** Start with `.project-context/ANTI_GRAVITY.md`
+2. **Check Mission Control:** Review `.project-context/MISSION_CONTROL.json`
+3. **Follow Agent Rules:** Adhere to `.project-context/AGENT_RULES.md`
 
-### Ví dụ mission:
-```markdown
-## Mission: Fix Excel Header Detection Bug
-**Status:** In Progress
-**Started:** 2025-12-28
-
-### Files in Scope
-- [ ] `ui/src-tauri/src/excel_engine.rs`
-- [ ] `ui/src-tauri/src/normalizer.rs`
-
-### Success Criteria
-- [ ] `cargo test` pass
-- [ ] Xử lý được file có header ở row 10
+### Mission Workflow (State Machine):
 ```
+PLANNING → AUDITING → EXECUTING → TESTING → DONE
+```
+
+1. **PLANNING:** Create `ACTIVE_MISSION.md` with clear scope
+2. **AUDITING:** Skeptic (AGENT S) reviews for boundary violations
+3. **EXECUTING:** Implement after Human Architect approval
+4. **TESTING:** Verify with `cargo test` and manual validation
+5. **DONE:** Archive mission report
+
+### Example Mission:
+See `.project-context/ACTIVE_MISSION.md` for current mission structure.

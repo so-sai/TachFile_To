@@ -36,21 +36,25 @@ TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượn
 
 ## 📖 Bản Đồ Tài Liệu
 
-### 📂 Cấu trúc dự án (IIP v1.0)
-*   **Hiến pháp dự án:** `.project-context/PROJECT_PROMPT.md` - Identity, Tech Stack, Boundaries
-*   **Quy tắc Agent:** `.project-context/AGENT_RULES.md` - Hướng dẫn làm việc với AI
-*   **Nhiệm vụ hiện tại:** `.project-context/ACTIVE_MISSION.md` - Tracking công việc đang làm
-*   **Bài học kinh nghiệm:** `LESSONS.md` - Anti-patterns và lỗi đã sửa
+### 📂 Cấu trúc dự án (IIP v1.1)
+- **Triết lý cốt lõi:** `.project-context/ANTI_GRAVITY.md` - Constitutional principles
+- **Quy tắc Agent:** `.project-context/AGENT_RULES.md` - AI agent guidelines
+- **Quản lý Mission:** `.project-context/MISSION_CONTROL.json` - State tracking
+- **Nhiệm vụ hiện tại:** `.project-context/ACTIVE_MISSION.md` - Current work
+- **Bài học kinh nghiệm:** `LESSONS.md` - Anti-patterns và lỗi đã sửa
 
 ### 📋 Specifications & Guides
-*   **Trạng thái hệ thống:** `docs/specs/MASTER_V3.0_DASHBOARD.md`
-*   **Quy tắc nghiệp vụ:** `docs/specs/RULE_PACK_NHA_NUOC_V1.1.md`
-*   **Giao thức IPC:** `docs/specs/IPC_PROTOCOL.md`
-*   **Hệ thống thiết kế UI:** `docs/specs/UI_DESIGN_SYSTEM.md`
-*   **Hợp đồng dữ liệu:** `docs/specs/TRUTH_CONTRACT_V1.md`
-*   **Hướng dẫn sử dụng:** `docs/GUIDE.md`
-*   **Lịch sử thay đổi:** `docs/CHANGELOG.md`
-*   **Tài liệu cũ (archived):** `.project-context/ARCHIVE/`
+- **Hướng dẫn tổng quan:** `docs/GUIDE.md` - Single source of truth
+- **Trạng thái hệ thống:** `docs/specs/MASTER_V3.0_DASHBOARD.md`
+- **Quy tắc nghiệp vụ:** `docs/specs/RULE_PACK_NHA_NUOC_V1.1.md`
+- **Giao thức IPC:** `docs/specs/IPC_PROTOCOL.md`
+- **Hệ thống thiết kế UI:** `docs/specs/UI_DESIGN_SYSTEM.md`
+- **Hợp đồng dữ liệu:** `docs/specs/TRUTH_CONTRACT_V1.md`
+- **Ranh giới hệ sinh thái:** `docs/BOUNDARY_MANIFEST.md`
+- **Lịch sử thay đổi:** `docs/CHANGELOG.md`
+
+### 🗃️ Lưu trữ
+- **Tài liệu cũ:** `.project-context/ARCHIVE/` - Legacy specs và reports
 
 ---
 
