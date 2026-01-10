@@ -1,0 +1,181 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://elite10.ecosystem/schemas/tachfileto-ingestion-v0.1.json",
+    "title": "TachFileTo Ingestion Object",
+    "description": "Contract for data exchange between TachFileTo and iron_core. Compliant with Nghị định 254/2025/NĐ-CP.",
+    "version": "0.1.0",
+    "type": "object",
+    "required": [
+        "source",
+        "document_type",
+        "schema_version",
+        "checksum",
+        "origin_signature",
+        "extraction_meta"
+    ],
+    "properties": {
+        "source": {
+            "const": "tachfileto",
+            "description": "Origin identifier - must always be 'tachfileto'"
+        },
+        "project_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Optional project identifier (if known at ingestion time)"
+        },
+        "document_type": {
+            "type": "string",
+            "enum": [
+                "BOQ_RAW",
+                "CONTRACT_RAW",
+                "INVOICE_METADATA",
+                "ACCEPTANCE_LOG_RAW",
+                "ADJUSTMENT_ADDENDUM",
+                "DRAWING_METADATA"
+            ],
+            "description": "Document classification per Nghị định 254/2025/NĐ-CP Article 12"
+        },
+        "pages": {
+            "type": "array",
+            "description": "Extracted page-level metadata",
+            "items": {
+                "type": "object",
+                "required": [
+                    "page",
+                    "content_type"
+                ],
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Page number (1-indexed)"
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "enum": [
+                            "table",
+                            "text",
+                            "image",
+                            "mixed"
+                        ],
+                        "description": "Detected content type"
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Detection confidence score (0.0 = no confidence, 1.0 = absolute certainty)"
+                    },
+                    "table_rows": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Number of rows if content_type is 'table'"
+                    },
+                    "table_columns": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Number of columns if content_type is 'table'"
+                    }
+                }
+            }
+        },
+        "checksum": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "description": "SHA-256 hash of source file for integrity verification",
+            "examples": [
+                "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            ]
+        },
+        "origin_signature": {
+            "type": "string",
+            "pattern": "^ed25519:[a-f0-9]{128}$",
+            "description": "Ed25519 signature proving this object was created by TachFileTo instance. Prevents JSON tampering.",
+            "examples": [
+                "ed25519:a1b2c3d4e5f6..."
+            ]
+        },
+        "extraction_meta": {
+            "type": "object",
+            "required": [
+                "engine",
+                "engine_version",
+                "timestamp"
+            ],
+            "description": "Forensic metadata for debugging and audit trails",
+            "properties": {
+                "engine": {
+                    "type": "string",
+                    "enum": [
+                        "calamine",
+                        "pdf_extract",
+                        "ocr_tesseract"
+                    ],
+                    "description": "Extraction engine used"
+                },
+                "engine_version": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+                    "description": "Semantic version of extraction engine",
+                    "examples": [
+                        "0.32.0",
+                        "1.2.3"
+                    ]
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "ISO 8601 timestamp of extraction (UTC)",
+                    "examples": [
+                        "2026-01-10T10:46:54Z"
+                    ]
+                },
+                "tachfileto_version": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                    "description": "TachFileTo application version",
+                    "examples": [
+                        "3.1.1"
+                    ]
+                }
+            }
+        },
+        "validation_warnings": {
+            "type": "array",
+            "description": "Non-blocking warnings detected during extraction (informational only)",
+            "items": {
+                "type": "object",
+                "required": [
+                    "code",
+                    "message"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "enum": [
+                            "LOW_CONFIDENCE",
+                            "MISSING_HEADER",
+                            "INCONSISTENT_COLUMNS",
+                            "UNRECOGNIZED_FORMAT"
+                        ]
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable warning description"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Page number where warning occurred"
+                    }
+                }
+            }
+        },
+        "schema_version": {
+            "const": "MF50-INGEST-0.1",
+            "description": "Schema version identifier for compatibility checking"
+        }
+    },
+    "additionalProperties": false,
+    "$comment": "This schema enforces the boundary between TachFileTo (data cleaning) and iron_core (business logic). TachFileTo MUST NOT add fields related to MasterFormat codes, pricing, or quantities."
+}
