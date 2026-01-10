@@ -1,5 +1,21 @@
 # PROJECT CONTEXT: app-tool-TachFileTo
 
+**IIP Protocol:** v1.1  
+**Project Type:** APP  
+**Owner:** so-sai
+
+---
+
+## 0. GOVERNANCE (IIP v1.1)
+
+**Core Philosophy:** See `ANTI_GRAVITY.md`  
+**Mission Control:** See `MISSION_CONTROL.json`  
+**Agent Rules:** See `AGENT_RULES.md`
+
+**State Machine:** PLANNING → AUDITING → EXECUTING → TESTING → DONE
+
+---
+
 ## 1. IDENTITY (ĐỊNH DANH)
 - **Mục tiêu:** Ứng dụng Desktop (Tauri) xử lý/tách file dữ liệu lớn, đảm bảo tính tất định (Deterministic Validation Engine) cho dự án Xây dựng.
 - **Tech Stack:**
