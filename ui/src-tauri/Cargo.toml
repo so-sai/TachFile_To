@@ -8,7 +8,7 @@ rust-version = "1.92.0"
 tauri = { version = "2.9", features = ["devtools"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-polars = { version = "0.52", features = ["lazy", "dtype-struct", "serde"] }
+polars = { version = "0.52", features = ["lazy", "dtype-struct", "serde", "timezones"] }
 calamine = { version = "0.32", features = ["dates"] }
 deunicode = "1.6"
 
@@ -17,4 +17,4 @@ name = "tachfileto_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = "2.5.3"
+tauri-build = { version = "2.5.3", features = [] }
