@@ -395,3 +395,13 @@ npm run tauri build
 
 **These constraints are non-negotiable. Violating them requires Human Architect approval.**
 
+
+## IX. ECOSYSTEM CONSTITUTION (IRON CORE)
+
+> **“iron_core là trung tâm logic nghiệp vụ của hệ sinh thái. Không app nào được sử dụng logic của iron_core nếu chưa có Contract được Architect phê duyệt.”**
+
+**Implementation via `BOUNDARY_MANIFEST.md`:**
+1.  **Restricted Access:** `iron_core` is `CENTRAL_LOGIC — RESTRICTED`.
+2.  **Embassy Pattern:** All data exchange MUST use `core_contract` structs.
+3.  **Logic Sovereignty:** No business logic (Price, Diff, Ledger) in local app code.
+
