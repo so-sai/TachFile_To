@@ -15,10 +15,11 @@ name = "elite_pdf"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# PyO3 - move extension-module to feature
+# PyO3 - extension-module required for .pyd
 pyo3 = { git = "https://github.com/PyO3/pyo3", features = [
     "serde",
     "auto-initialize",
+    "extension-module",
 ] }
 
 # MuPDF bindings
@@ -37,7 +38,7 @@ cc = "1.2"
 pkg-config = "0.3"
 
 [features]
-default = ["pyo3/extension-module"]
+default = []
 experimental = []
 vendored-mupdf = ["dep:mupdf-sys"]
 use-mupdf-sys = ["dep:mupdf-sys"]
@@ -52,6 +53,6 @@ harness = false
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = false       # Disabled to avoid LNK1120/LTCG issues with static libs
 codegen-units = 1
 strip = true

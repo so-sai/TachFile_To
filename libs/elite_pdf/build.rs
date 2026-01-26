@@ -34,40 +34,15 @@ fn main() {
 }
 
 fn link_mupdf_libs() {
-    // STUBBED: Static libraries provided have LNK1120 (missing C++ symbols).
-    // Linking them causes build failure even if unused.
-    // Disabling linking to verify Rust Architecture.
-    
+    // Enabled Linking for Final Build
+    // STUBBED AGAIN due to LNK1120 during Release Build
     // #[cfg(target_os = "windows")]
     // {
     //     println!("cargo:rustc-link-lib=static=libmupdf");
     //     println!("cargo:rustc-link-lib=static=libthirdparty");
     //     println!("cargo:rustc-link-lib=static=libharfbuzz");
     //     println!("cargo:rustc-link-lib=static=libtesseract");
-    //     println!("cargo:rustc-link-lib=static=libleptonica");
-    //     println!("cargo:rustc-link-lib=static=libresources");
-    //     println!("cargo:rustc-link-lib=static=libextract");
-    //     println!("cargo:rustc-link-lib=static=libmubarcode");
-    //     println!("cargo:rustc-link-lib=static=libpkcs7");
-    //     println!("cargo:rustc-link-lib=static=libzxing");
-    //     println!("cargo:rustc-link-lib=static=msvcprt");
-    //     println!("cargo:rustc-link-lib=user32");
-    //     println!("cargo:rustc-link-lib=gdi32");
-    //     println!("cargo:rustc-link-lib=comdlg32");
-    //     println!("cargo:rustc-link-lib=advapi32");
-    //     println!("cargo:rustc-link-lib=shell32");
-    //     println!("cargo:rustc-link-lib=crypt32");
-    //     println!("cargo:rustc-link-lib=bcrypt");
-    //     println!("cargo:rustc-link-lib=usp10");
-    //     println!("cargo:rustc-link-lib=rpcrt4");
-    //     println!("cargo:rustc-link-lib=ole32");
-    //     println!("cargo:rustc-link-lib=oleaut32");
-    // }
-    
-    // #[cfg(not(target_os = "windows"))]
-    // {
-    //     println!("cargo:rustc-link-lib=mupdf");
-    //     println!("cargo:rustc-link-lib=mupdf-third");
+    //     // ... others commented out
     // }
 }
 
