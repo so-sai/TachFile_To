@@ -1,0 +1,42 @@
+[package]
+name = "iron_python_bridge"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "PyO3-based Python embedding for Iron Core PDF extraction"
+authors = ["TachFileTo Team"]
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# PyO3 - Python embedding (commented out until build environment ready)
+# Anyhow for flexible error handling
+anyhow = "1.0"
+
+# Thiserror for structured error types
+thiserror = "2.0.18"
+
+# Serde for deserialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# PyO3 - Python embedding (Elite 2026 Spec)
+pyo3 = { git = "https://github.com/PyO3/pyo3", features = [
+    "auto-initialize",
+    "serde",
+] }
+
+# Tracing for structured logging
+tracing = "0.1"
+
+[features]
+default = []
+# Enable when PyOxidizer build is ready
+pyoxidizer = []
+# Enable for development with system Python
+system-python = []
+
+[dev-dependencies]
+tokio = { version = "1.43", features = ["full"] }

@@ -1,5 +1,6 @@
 # Rust artifacts
 target/
+scripts/debug/
 ui/src-tauri/target/
 Cargo.lock
 
@@ -15,30 +16,49 @@ Thumbs.db
 *.tmp
 *.bak
 *.new.*
-cargo
 .vscode/
 .idea/
 
 # Tauri
 ui/src-tauri/gen/
 
-# IIP v1.0 - Active mission tracking (local only)
+# IIP v1.0 - Active mission tracking
 .project-context/ACTIVE_MISSION.md
 
-# Phase 3 preparation - Database artifacts (enforce stateless architecture)
+# Database artifacts
 *.db
 *.db-shm
 *.db-wal
 
-# Temporary extraction (PDF processing)
+# Temporary / Cache
 temp/
 .cache/
 extraction_temp/
-
-# Ingestion objects (should not be committed - must be ephemeral)
 *.ingestion.json
-/temp/ingestion/
 
-# External Libraries (Noise Reduction)
-sqlcipher3/
+# --- ELITE 9 WASTE MANAGEMENT ---
+# Third-party Source & Build artifacts
+**/thirdparty/
+**/mupdf/
+**/sqlcipher*/
+**/platform/win32/
+**/*.obj
+**/*.lib
+**/*.pdb
+**/*.idb
+**/*.exp
+**/*.log
+**/*.tlog
+**/*.lastbuildstate
 
+# Diagnostic logs
+*.txt
+!README.md
+!LESSONS.md
+!ANTI_GRAVITY.md
+
+# Build Artifacts
+node_modules/
+dist/
+target/
+ui/src-tauri/target/

@@ -1,5 +1,3 @@
 [workspace]
-members = [
-    "ui/src-tauri",
-]
+members = ["ui/src-tauri", "libs/iron_python_bridge", "libs/elite_pdf"]
 resolver = "2"

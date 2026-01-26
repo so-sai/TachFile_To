@@ -1,7 +1,12 @@
-# 🛡️ TachFileTo
+# 📑 TachFileTo-VN 
 **Deterministic Validation Engine for Vietnamese Construction Projects**
 
 A tool that extracts truth from chaos — not opinions.
+
+> **🏛️ MDS Reference:** [MDS-ELITE9VN-2026-v1.1](../GOVERNANCE/MDS.md)  
+> **📍 Ecosystem Role:** `OPTIONAL` – Heavy Ingestion Tool  
+> **⚠️ Classification:** Không tham gia critical payment path (LAW-12)
+> **📖 Root Docs:** [README](../README.md)
 
 ## 🎯 Mục Đích Cốt Lõi (The Core Purpose)
 TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượng** trong xây dựng. Nó giải quyết một vấn đề cụ thể:
@@ -25,7 +30,7 @@ TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượn
 
 ## 🧠 Nguyên Tắc Thiết Kế Sắt Đá (Iron Core)
 1.  **Xác Định Trên Thông Minh (Determinism over Intelligence):** Cùng một đầu vào → luôn cho cùng một kết quả. Không có AI "phán đoán mù".
-2.  **Giao Diện Không Tính Toán (UI Never Thinks):** Mọi logic nghiệp vụ nằm trong Core (Rust). Frontend chỉ hiển thị.
+2.  **Giao Diện Không Tính Toán (UI Never Thinks):** Mọi logic nghiệp vụ nằm trong [`iron_coreVN`](../iron_core/README.md). Frontend chỉ hiển thị.
 3.  **Ưu Tiên Hiệu Năng (Performance is a Feature):** Xử lý file lớn (>50MB) là chuyện bình thường. Không có spinner giả dối.
 4.  **Tôn Trọng Thực Tế Việt Nam (Vietnamese Reality First):** Thuật ngữ, cách tính toán, quy chuẩn xây dựng Việt Nam là ưu tiên hàng đầu.
 

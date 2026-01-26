@@ -174,7 +174,58 @@ pub fn excel_load_file(path: String) // JavaScript must use { path: '...' }
 
 ---
 
-**Next Steps:**
-1. Maintain "Iron Core" discipline.
-2. Port Legacy Font Fixer to Rust native (V2.6).
-3. Implement Docling v2.x bridge (V2.6).
+---
+
+### 9. ELITE 9: THE NO-GIL REVOLUTION (Python 3.14t + Rust 2024)
+
+**Issue:** Building a hybrid Rust-Python app with Python 3.14t (free-threaded) results in multiple "Linking Hố tử thần":
+- PyO3 0.23 stable DOES NOT support Python 3.14.
+- Cargo resolver fails when multiple local crates link to the same `python` library.
+- New PyO3 `Bound` API changes break legacy `with_gil` code.
+
+**Root Cause:** Python 3.13/3.14 No-GIL requires experimental PyO3 support and strict environment alignment.
+
+**Solution: The "Elite 9" Build Protocol**
+
+#### 9.1 The Git-Source Override
+Do NOT use version numbers for PyO3 in `Cargo.toml`. Force the entire workspace to use the PyO3 development branch:
+```toml
+# libs/iron_python_bridge/Cargo.toml AND iron_core/Cargo.toml
+pyo3 = { git = "https://github.com/PyO3/pyo3", features = ["auto-initialize", "serde"] }
+```
+
+#### 9.2 API Migration (0.23 → 0.27 Git)
+- Replace `Python::with_gil(|py| ...)` with `Python::attach(|py: Python<'_>| ...)`.
+- **CRITICAL:** Explicit type annotation `py: Python<'_>` is MANDATORY for the compiler to resolve the new `Bound` API lifetimes.
+- Use `Python::initialize()` instead of `prepare_freethreaded_python()`.
+
+#### 9.3 Environment Control (The "Holy Trinity" of Env Vars)
+Before building/running, these MUST be set:
+```powershell
+$env:Py_GIL_DISABLED = "1"                # Active No-GIL mode
+$env:PYO3_IGNORE_PYTHON_VERSION_CHECK = "1" # Force PyO3 to accept 3.14
+$env:PYTHON_SYS_EXECUTABLE = "C:\...\python3.14t.exe" # Point to the 't' build
+```
+
+**Best Practice:** When bridging Rust to No-GIL Python, treat the build environment as a "Hard Lock". Any deviation in `pyo3` source across crates will cause a linking crash.
+
+---
+
+## Summary Table (Elite 9 Era)
+
+| Lesson | Severity | Status | Phase |
+|--------|----------|--------|-------|
+| Polars 0.52 Series/Column | High | ✅ Solved | V2.5 |
+| Universal XLS Support | High | ✅ Solved | V2.5 |
+| Smart Header / Merged Cells | High | ✅ Solved | V3.0 |
+| **PyO3 Git-Source Alignment** | **Critical** | ✅ **Solved** | **RC1** |
+| **No-GIL API Migration** | **High** | ✅ **Solved** | **RC1** |
+| **3.14t Env Enforcement** | **Critical** | ✅ **Active** | **RC1** |
+
+---
+
+**Next Steps (Alpha RC1+):**
+1. Maintain "Elite 9" discipline for all new modules.
+2. Stress test No-GIL performance with 100+ concurrent extractions.
+3. Prepare for Beta: Native Docling-v3 integration.
+
