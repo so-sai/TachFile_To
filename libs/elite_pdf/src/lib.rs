@@ -5,6 +5,8 @@ use std::ffi::{c_void, CString};
 use std::ptr;
 use std::panic::{self, AssertUnwindSafe};
 
+mod ledger;
+
 // =========================================================================
 // 1. OPAQUE FFI TYPES
 // =========================================================================
@@ -104,21 +106,41 @@ unsafe impl Sync for EliteDocument {}
 impl EliteDocument {
     #[new]
     pub fn new(filename: String) -> PyResult<Self> {
-        safe_ffi_call(move || {
-            let c_filename = CString::new(filename)
-                .map_err(|e| PyValueError::new_err(format!("Invalid path: {}", e)))?;
-            
-            let master = get_master_context();
-            let ctx = master.lock().unwrap();
-            
-            unsafe {
-                let doc_ptr = fz_open_document(ctx.as_ptr(), c_filename.as_ptr());
-                if doc_ptr.is_null() {
-                    return Err(PyRuntimeError::new_err("Failed to open document with MuPDF"));
+        // 1. Hash the file first (Streaming SHA-256)
+        let hash = ledger::hash_file(&filename)
+            .map_err(|e| PyValueError::new_err(format!("Failed to hash file: {}", e)))?;
+        
+        // 2. Check Ledger
+        if let Ok(Some(record)) = ledger::check_file_processed(&hash) {
+            println!("[Elite Ledger] File already processed: {} (Hash: {})", filename, hash);
+            println!("[Elite Ledger] Previous status: {}, Page count: {}", record.status, record.page_count);
+        }
+
+        // 3. Open with MuPDF
+        let doc = safe_ffi_call({
+            let filename_clone = filename.clone();
+            move || {
+                let c_filename = CString::new(filename_clone)
+                    .map_err(|e| PyValueError::new_err(format!("Invalid path: {}", e)))?;
+                
+                let master = get_master_context();
+                let ctx = master.lock().unwrap();
+                
+                unsafe {
+                    let doc_ptr = fz_open_document(ctx.as_ptr(), c_filename.as_ptr());
+                    if doc_ptr.is_null() {
+                        return Err(PyRuntimeError::new_err("Failed to open document with MuPDF"));
+                    }
+                    Ok(Self { inner: doc_ptr })
                 }
-                Ok(Self { inner: doc_ptr })
             }
-        })
+        })?;
+
+        // 4. Record to Ledger
+        let page_count = doc.count_pages().unwrap_or(-1);
+        let _ = ledger::record_ingestion(&filename, &hash, page_count, "SUCCESS");
+
+        Ok(doc)
     }
 
     pub fn count_pages(&self) -> PyResult<i32> {
@@ -148,6 +170,9 @@ impl Drop for EliteDocument {
 
 #[pymodule]
 fn elite_pdf(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Initialize Database
+    ledger::init_db().map_err(|e| PyRuntimeError::new_err(format!("Ledger init failed: {}", e)))?;
+    
     m.add_class::<EliteDocument>()?;
     Ok(())
 }

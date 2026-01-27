@@ -36,7 +36,6 @@ Repository = "https://github.com/elite9/tachfileto"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-source = "python"
 module-name = "elite_pdf"
 strip = true
 
