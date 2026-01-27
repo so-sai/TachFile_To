@@ -405,3 +405,27 @@ npm run tauri build
 2.  **Embassy Pattern:** All data exchange MUST use `core_contract` structs.
 3.  **Logic Sovereignty:** No business logic (Price, Diff, Ledger) in local app code.
 
+---
+
+## X. MDS ALIGNMENT (MDS-ELITE10-2026-v1.0)
+
+> **TachFileTo = OPTIONAL Heavy Ingestion Tool**
+
+### Classification per MDS §II.3
+- **Role:** Heavy PDF/OCR processing (khi cần)
+- **Status:** `OPTIONAL` – Không bắt buộc cho hệ sinh thái
+- **Dependency:** AutoQSVN/iron_core KHÔNG phụ thuộc TachFileTo
+
+### LAW Compliance
+| Law | Requirement | Status |
+|-----|-------------|--------|
+| LAW-03 | Payment Safety | ✅ Không tham gia payment flow |
+| LAW-04 | Optional Module Rule | ✅ Không trong critical path |
+
+### Existence Conditions (MDS §II.3)
+TachFileTo chỉ được triển khai khi có **cả 3 điều kiện**:
+1. PDF nặng / scan
+2. Cần OCR / AI
+3. Chi phí xử lý cao
+
+**Reference:** [docs/MDS_ALIGNMENT.md](../docs/MDS_ALIGNMENT.md)

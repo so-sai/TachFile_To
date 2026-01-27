@@ -86,22 +86,28 @@
 
 /* COMMON BRUTALIST BOX */
 .brutal-box {
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border);
   background-color: var(--panel);
   padding: 16px;
   position: relative;
+  /* Precision Brutalism: Hard shadow instead of soft glow */
+  box-shadow: 4px 4px 0px var(--black);
 }
 
+/* Specific Hard Shadows */
 .brutal-box-green {
   border-color: var(--neon-green);
+  box-shadow: 4px 4px 0px var(--neon-green);
 }
 
 .brutal-box-red {
   border-color: var(--neon-red);
+  box-shadow: 4px 4px 0px var(--neon-red);
 }
 
 .brutal-box-yellow {
   border-color: var(--neon-yellow);
+  box-shadow: 4px 4px 0px var(--neon-yellow);
 }
 
 /* TABLES */
@@ -119,7 +125,7 @@
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 1.5px solid var(--border);
 }
 
 .iron-table td {
@@ -157,6 +163,52 @@
 
 .neon-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Review Required Vibration (Neon Yellow) */
+@keyframes vibration {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(1px, 1px);
+  }
+
+  50% {
+    transform: translate(-1px, -1px);
+  }
+
+  75% {
+    transform: translate(1px, -1px);
+  }
+
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.review-required {
+  border: 1.5px solid var(--neon-yellow) !important;
+  box-shadow: 4px 4px 0px var(--neon-yellow) !important;
+  animation: vibration 0.2s linear infinite;
+  background-color: var(--warning-bg) !important;
+  color: var(--warning-color) !important;
+}
+
+/* Data Invalid Signal (Neon Red) */
+.data-invalid {
+  border: 1.5px solid var(--neon-red) !important;
+  background-color: rgba(255, 0, 60, 0.1) !important;
+  position: relative;
+}
+
+.data-invalid::after {
+  content: '⚠️';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
 }
 
 /* SCROLLBAR (Cyberpunk Style) */

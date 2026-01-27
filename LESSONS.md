@@ -221,11 +221,19 @@ $env:PYTHON_SYS_EXECUTABLE = "C:\...\python3.14t.exe" # Point to the 't' build
 | **PyO3 Git-Source Alignment** | **Critical** | ✅ **Solved** | **RC1** |
 | **No-GIL API Migration** | **High** | ✅ **Solved** | **RC1** |
 | **3.14t Env Enforcement** | **Critical** | ✅ **Active** | **RC1** |
+| **Heuristic Header Discovery**| **High**     | ✅ **Frozen** | **RC1** |
 
 ---
 
+### 10. HEURISTIC VS ML: THE HEADER DETECTION DEBATE
+
+**Verdict:** Header detection in construction documents is a **Heuristic + Domain** problem, not a Machine Learning problem.
+
+- **Reasoning:** Inconsistent templates and "Hố tử thần" garbage rows make ML models overfit or hallucinate. A rigid, deterministic scoring engine (Jaro-Winkler + Numeric Penalty) provides the **Zero Ambiguity** required by Founders.
+- **Rule:** Never use ML where a well-tuned heuristic can provide 100% determinism.
+
 **Next Steps (Alpha RC1+):**
 1. Maintain "Elite 9" discipline for all new modules.
-2. Stress test No-GIL performance with 100+ concurrent extractions.
-3. Prepare for Beta: Native Docling-v3 integration.
+2. Mission 2026-004: Row Extraction & Data Type Validation.
+3. Stress test No-GIL performance with 100+ concurrent extractions.
 

@@ -1,7 +1,9 @@
 # TachFileTo Boundary Manifest
-**Version:** 1.0.0  
+**Version:** 1.1.0  
+**MDS Reference:** MDS-ELITE10-2026-v1.0  
+**Ecosystem Role:** `OPTIONAL` – Heavy Ingestion Tool  
 **Status:** Constitutional (Non-Negotiable)  
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-01-12
 
 ---
 

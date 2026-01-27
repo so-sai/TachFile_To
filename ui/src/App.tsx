@@ -104,9 +104,31 @@ function App() {
     setupDragDrop();
   }, []);
 
+  // V3.2: Intelligent Router (Hotfix for Alpha RC1)
+  const [docContent, setDocContent] = useState<string>("");
+  const [isDocMode, setIsDocMode] = useState(false);
+
   const processFile = async (path: string) => {
     setIsLoading(true);
-    setFilePath(path); // V3.1: Lưu path để đổi sheet
+    setFilePath(path);
+    setLoadingMsg("ĐANG PHÂN TÍCH FILE...");
+
+    const extension = path.split('.').pop()?.toLowerCase();
+
+    // ROUTING LOGIC
+    if (extension === 'xlsx' || extension === 'xls') {
+      await processExcel(path);
+    } else if (extension === 'pdf' || extension === 'docx' || extension === 'md') {
+      await processDocument(path);
+    } else {
+      alert("Định dạng chưa được hỗ trợ trong Alpha RC1 (chỉ PDF, DOCX, XLSX, MD)");
+      setIsLoading(false);
+    }
+  };
+
+  const processExcel = async (path: string) => {
+    setIsDocMode(false);
+    // Legacy Excel Logic
     let logIdx = 0;
     const logInterval = setInterval(() => {
       if (logIdx < matrixLogs.length) {
@@ -125,10 +147,38 @@ function App() {
       setHasData(true);
       setActiveTab('dashboard');
     } catch (err) {
-      alert("Lỗi: " + err);
+      alert("Lỗi đọc Excel: " + err);
     } finally {
       clearInterval(logInterval);
       setLoadingMsg("");
+      setIsLoading(false);
+    }
+  };
+
+  const processDocument = async (path: string) => {
+    setIsDocMode(true);
+    setLoadingMsg("KÍCH HOẠT FAST LANE (NO-GIL)...");
+    try {
+      // Call Unified Extractor (Rust -> Iron Core -> Python 3.14t)
+      const result = await invoke<any>("extract_file", { path: path });
+
+      // Result is generic JSON. For Alpha RC1, we prioritize showing the "content" or "raw_text".
+      let content = "";
+      if (typeof result === 'string') {
+        content = result;
+      } else if (result.content) {
+        content = result.content;
+      } else {
+        content = JSON.stringify(result, null, 2);
+      }
+
+      setDocContent(content);
+      setHasData(true);
+      setActiveTab('data'); // Switch to Data tab to show preview
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi Fast Lane: " + err);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -267,8 +317,18 @@ function App() {
       {activeTab === 'dashboard' ? (
         // DASHBOARD TAB
         <div className="flex-1 overflow-auto bg-[#EEE]">
-          {hasData ? (
+          {hasData && !isDocMode ? (
             <DashboardFounder />
+          ) : hasData && isDocMode ? (
+            <div className="flex flex-col items-center justify-center h-full p-8">
+              <div className="brutal-box w-full max-w-4xl bg-white p-6 border-4 border-black shadow-hard">
+                <h2 className="text-2xl font-black mb-4 uppercase bg-yellow-400 inline-block px-2">DOCUMENT DIGITIZED (FAST LANE)</h2>
+                <p className="mb-4 font-bold">Dữ liệu đã được trích xuất qua Engine No-GIL. Hiện tại Dashboard chỉ hỗ trợ Excel.</p>
+                <button onClick={() => setActiveTab('data')} className="bg-black text-white px-6 py-3 font-bold hover:bg-gray-800 transition-colors">
+                  XEM NỘI DUNG CHI TIẾT &rarr;
+                </button>
+              </div>
+            </div>
           ) : (
             // EMPTY STATE - Brutalist Style
             <div className="flex flex-col items-center justify-center h-full p-8">
@@ -276,64 +336,74 @@ function App() {
                 <h2 className="text-6xl font-black mb-6 tracking-tighter uppercase underline decoration-8 decoration-yellow-400">
                   READY FOR JUDGMENT
                 </h2>
-                <p className="text-2xl font-bold mb-10 text-gray-700">Kéo thả file Excel để bắt đầu phân tích rủi ro dự án</p>
+                <p className="text-2xl font-bold mb-10 text-gray-700">Kéo thả file Excel/PDF để bắt đầu phân tích</p>
                 <div className="grid grid-cols-3 gap-6 text-xs font-black uppercase tracking-widest">
                   <div className="p-4 border-4 border-black bg-green-500">100% TIẾNG VIỆT</div>
                   <div className="p-4 border-4 border-black bg-blue-500 text-white">IRON CORE V2.5</div>
-                  <div className="p-4 border-4 border-black bg-yellow-500">33/33 TESTS PASS</div>
+                  <div className="p-4 border-4 border-black bg-yellow-500">NO-GIL READY</div>
                 </div>
               </div>
             </div>
           )}
         </div>
       ) : (
-        // DATA VIEW TAB - QS Grid
+        // DATA VIEW TAB
         <>
-          {/* TABLE HEADER */}
-          {totalRows > 0 && (
-            <div className="table-header">
-              <div className="header-cell" style={{ width: 60 }}>ID</div>
-              {columns.map(col => (
-                <div key={col} className="header-cell" style={{ width: 180 }}>{col}</div>
-              ))}
+          {isDocMode ? (
+            // DOCUMENT OVERVIEW MODE
+            <div className="w-full h-full p-6 overflow-auto bg-gray-50 font-mono text-sm whitespace-pre-wrap">
+              {docContent || "Không có nội dung text."}
             </div>
-          )}
+          ) : (
+            // EXCEL GRID MODE
+            <>
+              {/* TABLE HEADER */}
+              {totalRows > 0 && (
+                <div className="table-header">
+                  <div className="header-cell" style={{ width: 60 }}>ID</div>
+                  {columns.map(col => (
+                    <div key={col} className="header-cell" style={{ width: 180 }}>{col}</div>
+                  ))}
+                </div>
+              )}
 
-          <div ref={parentRef} className="enterprise-scroll-container w-full bg-white relative" style={{ flex: 1 }}>
-            {totalRows === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-black font-black uppercase">
-                <p className="text-4xl italic">Chưa có dữ liệu chi tiết</p>
+              <div ref={parentRef} className="enterprise-scroll-container w-full bg-white relative" style={{ flex: 1 }}>
+                {totalRows === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-black font-black uppercase">
+                    <p className="text-4xl italic">Chưa có dữ liệu chi tiết</p>
+                  </div>
+                ) : (
+                  <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const row = dataMap[virtualRow.index];
+                      return (
+                        <div
+                          key={virtualRow.index}
+                          className="table-row"
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualRow.start}px)`
+                          }}
+                        >
+                          <div className="cell tabular-nums font-black bg-gray-100 border-r-2 border-black" style={{ width: 60 }}>{virtualRow.index + 1}</div>
+                          {row ? (
+                            columns.map(col => (
+                              <div key={col} className="cell truncate font-medium" style={{ width: 180 }}>{String(row[col])}</div>
+                            ))
+                          ) : (
+                            <div className="cell w-full bg-gray-50 h-full"></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const row = dataMap[virtualRow.index];
-                  return (
-                    <div
-                      key={virtualRow.index}
-                      className="table-row"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        transform: `translateY(${virtualRow.start}px)`
-                      }}
-                    >
-                      <div className="cell tabular-nums font-black bg-gray-100 border-r-2 border-black" style={{ width: 60 }}>{virtualRow.index + 1}</div>
-                      {row ? (
-                        columns.map(col => (
-                          <div key={col} className="cell truncate font-medium" style={{ width: 180 }}>{String(row[col])}</div>
-                        ))
-                      ) : (
-                        <div className="cell w-full bg-gray-50 h-full"></div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </>
       )}
 

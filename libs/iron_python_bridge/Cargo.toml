@@ -31,6 +31,21 @@ pyo3 = { git = "https://github.com/PyO3/pyo3", features = [
 # Tracing for structured logging
 tracing = "0.1"
 
+# SQLite for ledger persistence (matching iron_core version)
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+
+# Chrono for timestamp handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# SHA2 for checksum calculation
+sha2 = "0.10"
+
+# Tokio for async operations
+tokio = { version = "1.43", features = ["full"] }
+
+# Tempfile for testing
+tempfile = "3.0"
+
 [features]
 default = []
 # Enable when PyOxidizer build is ready

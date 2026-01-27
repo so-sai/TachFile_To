@@ -1,0 +1,44 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "elite-pdf"
+version = "0.1.0a1"
+description = "Elite No-GIL MuPDF Wrapper - High-performance PDF processing for Python 3.14+"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "Elite 9 Team", email = "elite9@tachfileto.vn" }]
+keywords = [
+    "pdf",
+    "mupdf",
+    "no-gil",
+    "free-threading",
+    "extraction",
+    "rendering",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Text Processing :: Markup :: PDF",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/elite9/tachfileto"
+Documentation = "https://docs.tachfileto.vn/elite-pdf"
+Repository = "https://github.com/elite9/tachfileto"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "elite_pdf"
+strip = true
+
+# Build for free-threaded Python:
+# maturin build --release --interpreter python3.14t

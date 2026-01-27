@@ -127,13 +127,11 @@ The status is determined **exclusively** by Profit Margin and Deviation.
 
 ---
 
-## 🎯 Next Steps (Phase 3)
+## 🎯 Status & Skills (Active)
 
-We have conquered Excel. Now we conquer PDF.
-
-1. **Docling Integration**: Extract tables from unstructured PDFs.
-2. **Legacy Font Fixer**: Convert TCVN3/VNI to Unicode (Rust Native).
-3. **Evidence Viewer**: Click a number -> Show the original PDF crop.
+1. **Docling Integrated**: ✅ **Skill Activated**. High-fidelity table extraction from PDFs is now available via the `pdf-analysis` skill.
+2. **Legacy Font Fixer**: ⏳ Planned (Rust Native).
+3. **Evidence Viewer**: ⏳ Planned.
 
 ---
 

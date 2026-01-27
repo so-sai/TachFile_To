@@ -433,7 +433,7 @@ pub async fn excel_load_file(
     let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
 
     // 5. Metadata cho window ban đầu (100 dòng)
-    let headers: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let headers: Vec<String> = df.get_column_names().iter().map(|s| (*s).to_string()).collect();
     let total_rows = df.height();
     
     let window_size = 100.min(total_rows);
@@ -489,7 +489,7 @@ pub async fn excel_select_sheet(
     let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
 
     // 4. Metadata cho window
-    let headers: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let headers: Vec<String> = df.get_column_names().iter().map(|s| (*s).to_string()).collect();
     let total_rows = df.height();
     
     let window_size = 100.min(total_rows);
@@ -543,7 +543,7 @@ pub async fn excel_get_window(
 
     let len = safe_end - start;
     let sliced_df = df.slice(start as i64, len);
-    let columns: Vec<String> = sliced_df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let columns: Vec<String> = sliced_df.get_column_names().iter().map(|s| (*s).to_string()).collect();
 
     let mut data = Vec::new();
     for i in 0..sliced_df.height() {

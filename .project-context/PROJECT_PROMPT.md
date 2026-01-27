@@ -1,6 +1,8 @@
 # PROJECT CONTEXT: app-tool-TachFileTo
 
 **IIP Protocol:** v1.1  
+**MDS Reference:** MDS-ELITE10-2026-v1.0  
+**Ecosystem Role:** OPTIONAL (Heavy Ingestion Tool)  
 **Project Type:** APP  
 **Owner:** so-sai
 

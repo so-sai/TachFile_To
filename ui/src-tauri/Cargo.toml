@@ -2,15 +2,27 @@
 name = "tachfileto-bin"
 version = "3.1.1"
 edition = "2024"
-rust-version = "1.92.0"
+rust-version = "1.92"
 
 [dependencies]
 tauri = { version = "2.9", features = ["devtools"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-polars = { version = "0.52", features = ["lazy", "dtype-struct", "serde", "timezones"] }
+polars = { version = "0.52.0", features = [
+    "lazy",
+    "dtype-struct",
+    "serde",
+    "timezones",
+] }
 calamine = { version = "0.32", features = ["dates"] }
 deunicode = "1.6"
+uuid = { version = "1.11", features = ["serde", "v4"] }
+anyhow = "1.0"
+strsim = "0.11"
+lazy_static = "1.4"
+chrono = { version = "0.4", features = ["serde"] }
+iron_core = { path = "../../../iron_core" }
+iron_python_bridge = { path = "../../libs/iron_python_bridge" }
 
 [lib]
 name = "tachfileto_lib"
