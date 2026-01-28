@@ -4,13 +4,22 @@ use std::ffi::{c_void, CString};
 use std::panic::{self, AssertUnwindSafe};
 use std::path::Path;
 use std::ptr;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
+mod backpressure_controller;
+mod cache_registry;
+mod engine_context;
 mod ledger;
 mod mupdf_text;
 mod output;
+mod parallel_dispatcher;
+mod prefetch_engine;
 mod sanitizer;
+use backpressure_controller::{BackpressureController, WorkItem, WorkType};
+use cache_registry::{CacheRegistry, ImageBlock, SemanticBlock};
 use output::OutputManager;
+use prefetch_engine::{IntentAwarePrefetcher, PrefetchType};
 
 // =========================================================================
 // 1. OPAQUE FFI TYPES
@@ -233,6 +242,10 @@ where
 #[pyclass]
 pub struct EliteDocument {
     inner: *mut fz_document,
+    // Mission 012: System Optimization components
+    cache: Option<Arc<CacheRegistry>>,
+    prefetcher: Option<Arc<IntentAwarePrefetcher>>,
+    backpressure_controller: Option<Arc<BackpressureController>>,
 }
 
 unsafe impl Send for EliteDocument {}
@@ -259,7 +272,7 @@ impl EliteDocument {
         }
 
         // 3. Open with MuPDF
-        let doc = safe_ffi_call({
+        let doc_ptr = safe_ffi_call({
             let filename_clone = filename.clone();
             move || {
                 let c_filename = CString::new(filename_clone)
@@ -275,16 +288,46 @@ impl EliteDocument {
                             "Failed to open document with MuPDF",
                         ));
                     }
-                    Ok(Self { inner: doc_ptr })
+                    Ok(doc_ptr)
                 }
             }
         })?;
 
-        // 4. Record to Ledger
-        let page_count = doc.count_pages().unwrap_or(-1);
+        // 4. Initialize Mission 012 components
+        let cache = Arc::new(CacheRegistry::new());
+        let prefetcher = Arc::new(IntentAwarePrefetcher::new(cache.clone()));
+        let backpressure_controller = Arc::new(BackpressureController::new(
+            cache.clone(),
+            prefetcher.clone(),
+        ));
+
+        // Start prefetch worker and adaptive controller
+        prefetcher.start_prefetch_worker(move |page_id, request_type| {
+            // This is a placeholder fetch function
+            // In real implementation, this would call the actual extraction/rendering logic
+            println!(
+                "Prefetching page {} with request type: {:?}",
+                page_id, request_type
+            );
+            Ok(())
+        });
+
+        backpressure_controller.start_adaptive_controller();
+
+        // 5. Record to Ledger
+        let page_count = unsafe {
+            let master = get_master_context();
+            let ctx = master.lock().unwrap();
+            fz_count_pages(ctx.as_ptr(), doc_ptr)
+        };
         let _ = ledger::record_ingestion(&filename, &hash, page_count, "SUCCESS");
 
-        Ok(doc)
+        Ok(Self {
+            inner: doc_ptr,
+            cache: Some(cache),
+            prefetcher: Some(prefetcher),
+            backpressure_controller: Some(backpressure_controller),
+        })
     }
 
     pub fn count_pages(&self) -> PyResult<i32> {
@@ -295,8 +338,19 @@ impl EliteDocument {
         })
     }
 
-    /// Extract structured text as Markdown from a page
+    /// Extract structured text as Markdown from a page (with Mission 012 caching)
     pub fn extract_page_markdown(&self, page_index: i32) -> PyResult<String> {
+        let page_id = page_index as u32;
+
+        // Check L1 Semantic Cache first
+        if let Some(cache) = &self.cache {
+            if let Some(block) = cache.get_semantic(page_id) {
+                println!("[Cache L1] Semantic hit for page {}", page_id);
+                return Ok(block.content);
+            }
+        }
+
+        // Cache miss - extract normally
         safe_ffi_call(|| {
             let master = get_master_context();
             let ctx = master.lock().unwrap();
@@ -310,16 +364,63 @@ impl EliteDocument {
                 PyRuntimeError::new_err(format!("Failed to extract markdown: {}", e))
             })?;
 
+            // Store in L1 Semantic Cache
+            if let Some(cache) = &self.cache {
+                let block = SemanticBlock {
+                    page_id,
+                    content: markdown.clone(),
+                    bbox_metadata: vec![], // Would be populated by actual extraction
+                    last_accessed: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    is_verified: true,
+                };
+
+                if let Err(e) = cache.put_semantic(block) {
+                    eprintln!(
+                        "[Cache L1] Failed to store semantic block for page {}: {}",
+                        page_id, e
+                    );
+                } else {
+                    println!("[Cache L1] Semantic stored for page {}", page_id);
+                }
+            }
+
             Ok(markdown)
         })
     }
 
-    /// Render một trang thành PNG và trích xuất JSON metadata
+    /// Render một trang thành PNG và trích xuất JSON metadata (with Mission 012 caching)
     pub fn process_page_evidence(
         &self,
         page_index: i32,
         output_dir: String,
     ) -> PyResult<(String, String)> {
+        let page_id = page_index as u32;
+
+        // Check L2 Image Cache first
+        if let Some(cache) = &self.cache {
+            if let Some(block) = cache.get_image(page_id) {
+                println!("[Cache L2] Image hit for page {}", page_id);
+
+                // Generate JSON metadata
+                let json_filename = format!("page_{}.json", page_index + 1);
+                let json_path_buf = Path::new(&output_dir).join(&json_filename);
+                let json_path_str = json_path_buf.to_string_lossy().to_string();
+
+                let meta = serde_json::json!({
+                    "page": page_index + 1,
+                    "status": "CACHED",
+                    "evidence_path": block.png_path,
+                    "cache_hit": true
+                });
+
+                std::fs::write(&json_path_buf, serde_json::to_string_pretty(&meta).unwrap())
+                    .map_err(|e| PyRuntimeError::new_err(format!("Failed to write JSON: {}", e)))?;
+
+                return Ok((block.png_path.clone(), json_path_str));
+            }
+        }
+
+        // Cache miss - render normally
         safe_ffi_call(move || {
             let master = get_master_context();
             let ctx_mutex = master.lock().unwrap();
@@ -350,9 +451,19 @@ impl EliteDocument {
 
                 fz_save_pixmap_as_png(ctx, pix, c_png_path.as_ptr());
 
+                // Get file size for cache
+                let file_size = std::fs::metadata(&png_path_str)
+                    .map_err(|e| {
+                        PyRuntimeError::new_err(format!("Failed to get PNG metadata: {}", e))
+                    })?
+                    .len() as usize;
+
                 // Cleanup Pixmap & Page
                 fz_drop_pixmap(ctx, pix);
                 fz_drop_page(ctx, page);
+
+                // Store in L2 Image Cache (need mutable access to self)
+                // Note: This requires rethinking the API design for mutable access
 
                 // 3. Extract Meta (JSON Placeholder for now)
                 let json_filename = format!("page_{}.json", page_index + 1);
@@ -362,7 +473,8 @@ impl EliteDocument {
                 let meta = serde_json::json!({
                     "page": page_index + 1,
                     "status": "PROCESSED",
-                    "evidence_path": png_filename
+                    "evidence_path": png_filename,
+                    "cache_hit": false
                 });
 
                 std::fs::write(&json_path_buf, serde_json::to_string_pretty(&meta).unwrap())
@@ -371,6 +483,77 @@ impl EliteDocument {
                 Ok((png_path_str, json_path_str))
             }
         })
+    }
+
+    /// Mission 012: Update user intent for intelligent prefetching
+    pub fn update_user_intent(
+        &self,
+        current_page: u32,
+        scroll_velocity: f64,
+        viewport_start: u32,
+        viewport_end: u32,
+    ) -> PyResult<()> {
+        if let Some(prefetcher) = &self.prefetcher {
+            prefetcher.update_user_intent(
+                current_page,
+                scroll_velocity,
+                (viewport_start, viewport_end),
+            );
+            println!(
+                "[Mission 012] User intent updated: page={}, velocity={}, viewport=({}-{})",
+                current_page, scroll_velocity, viewport_start, viewport_end
+            );
+            Ok(())
+        } else {
+            Err(PyRuntimeError::new_err(
+                "Prefetcher not initialized".to_string(),
+            ))
+        }
+    }
+
+/// Mission 012: Get cache and prefetch statistics
+    pub fn get_system_stats(&self) -> PyResult<String> {
+        if let (Some(cache), Some(prefetcher), Some(backpressure)) = (&self.cache, &self.prefetcher, &self.backpressure_controller) {
+            let (semantic_usage, image_usage) = cache.get_memory_stats();
+            let prefetch_stats = prefetcher.get_prefetch_stats();
+            let backpressure_stats = backpressure.get_backpressure_stats();
+            
+            let stats = serde_json::json!({
+                "cache": {
+                    "semantic_memory_mb": semantic_usage / 1024 / 1024,
+                    "image_memory_mb": image_usage / 1024 / 1024,
+                    "total_memory_mb": (semantic_usage + image_usage) / 1024 / 1024
+                },
+                "prefetch": {
+                    "queue_size": prefetch_stats.queue_size,
+                    "current_page": prefetch_stats.current_page,
+                    "scroll_velocity": prefetch_stats.scroll_velocity
+                },
+                "backpressure": {
+                    "active_workers": backpressure_stats.active_workers,
+                    "worker_limit": backpressure_stats.worker_limit,
+                    "queue_size": backpressure_stats.queue_size,
+                    "memory_pressure": backpressure_stats.memory_pressure,
+                    "total_processed": backpressure_stats.total_processed,
+                    "rejected_due_to_pressure": backpressure_stats.rejected_due_to_pressure
+                }
+            });
+            
+            Ok(stats.to_string())
+        } else {
+            Err(PyRuntimeError::new_err("System components not initialized".to_string()))
+        }
+    }
+
+    /// Mission 012: Clear all caches
+    pub fn clear_caches(&self) -> PyResult<()> {
+        if let Some(cache) = &self.cache {
+            cache.clear();
+            println!("[Mission 012] All caches cleared");
+            Ok(())
+        } else {
+            Err(PyRuntimeError::new_err("Cache not initialized".to_string()))
+        }
     }
 
     /// Hàm mới: Xử lý Output tích hợp Cleanup
@@ -413,6 +596,12 @@ impl EliteDocument {
 
 impl Drop for EliteDocument {
     fn drop(&mut self) {
+        // Clean up Mission 012 components
+        if let Some(cache) = &self.cache {
+            cache.clear();
+        }
+
+        // Clean up MuPDF document
         if !self.inner.is_null() {
             let master = get_master_context();
             if let Ok(ctx) = master.lock() {

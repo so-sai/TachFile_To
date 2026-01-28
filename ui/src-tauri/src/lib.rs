@@ -12,6 +12,9 @@ mod excel_engine;
 mod normalizer;
 mod commands; // NEW: Mission 2026-001
 pub mod core_contract; // NEW: iron_core Embassy (Mission 2026-001)
+pub mod resource_court; // NEW: Mission 012A - ResourceCourt (Tam Quyền Phân Lập)
+pub mod executioner; // NEW: Mission 012B - Executioner & Quiesce Protocol (Phase 1: API)
+// Phase 2 modules (executor, recovery) will be added when implementation begins
 
 use excel_engine::ExcelAppState;
 use commands::validate_file; // Import new module

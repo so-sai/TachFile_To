@@ -21,6 +21,8 @@ anyhow = "1.0"
 strsim = "0.11"
 lazy_static = "1.4"
 chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
+tempfile = "3.0"
 iron_core = { path = "../../../iron_core" }
 iron_python_bridge = { path = "../../libs/iron_python_bridge" }
 

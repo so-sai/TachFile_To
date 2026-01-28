@@ -254,7 +254,7 @@ fn determine_project_status(
     high_risk_count: usize,
     total_rows: usize,
 ) -> (String, String) {
-    let risk_density = if total_rows > 0 {
+    let _risk_density = if total_rows > 0 {
         high_risk_count as f64 / total_rows as f64 * 100.0
     } else {
         0.0

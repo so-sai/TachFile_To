@@ -1,0 +1,588 @@
+/*
+ * MISSION 012B - EXECUTIONER & QUIESCE PROTOCOL
+ * ==============================================
+ * Enforcement Design: Pure execution with no independent judgment
+ * 
+ * Phase 2: Enforcement Engine (Heavy I/O, Deterministic)
+ * 
+ * Principles:
+ *   - Executioner is "dumb" (executes only what Court orders)
+ *   - Every verdict must have Write-Ahead Ledger entry
+ *   - Soft-delete = logical exile only (Registry removal)
+ *   - Quiesce has deadline to prevent indefinite suspension
+ *   - Ghost files validated against Naming Contract
+ *
+ * Build Date: 2026-01-28
+ * Status: API LOCKED - ready for implementation phase
+ */
+
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
+use crate::resource_court::{EvictionVerdict, EvictionAction, CacheRegistry};
+
+// ============================================================
+// 1. EXECUTION WARRANT - "LỆnh từ Tòa"
+// ============================================================
+
+/// ExecutionWarrant: signed order from ResourceCourt
+/// 
+/// Principles:
+///   - Nonce prevents replay attacks (runtime & cross-restart)
+///   - Issued_at is immutable proof of issuance time
+///   - Must exist in Ledger BEFORE Executioner touches it
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionWarrant {
+    /// The verdict from ResourceCourt (immutable)
+    pub verdict: EvictionVerdict,
+    
+    /// Unique identifier for this warrant (prevents replay)
+    pub nonce: u64,
+    
+    /// Timestamp when warrant was issued (for audit trail)
+    pub issued_at: u64,
+    
+    /// Cryptographic signature (placeholder for future HMAC)
+    /// In audit-grade systems, every warrant must be signed by Court
+    pub signature: String,
+    
+    /// Reference to Ledger entry (must exist before execution)
+    pub ledger_ref: Option<String>,
+}
+
+impl ExecutionWarrant {
+    /// Create new warrant (only ResourceCourt can do this)
+    pub fn new(verdict: EvictionVerdict, nonce: u64) -> Self {
+        Self {
+            verdict,
+            nonce,
+            issued_at: current_timestamp(),
+            signature: String::new(),  // Will be filled by Court
+            ledger_ref: None,
+        }
+    }
+    
+    /// Verify warrant is valid (basic checks)
+    pub fn is_valid(&self) -> bool {
+        // Nonce must be non-zero
+        if self.nonce == 0 {
+            return false;
+        }
+        
+        // File ID must not be empty
+        if self.verdict.file_id.is_empty() {
+            return false;
+        }
+        
+        // Issued_at must be valid timestamp
+        if self.issued_at == 0 {
+            return false;
+        }
+        
+        true
+    }
+    
+    /// Get human-readable warrant ID for logging
+    pub fn warrant_id(&self) -> String {
+        format!("WARRANT_{:016x}", self.nonce)
+    }
+}
+
+// ============================================================
+// 2. EXECUTION REPORT - "Báo cáo thực thi"
+// ============================================================
+
+/// Report from Executioner (no verdict modification allowed)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionReport {
+    /// Original warrant nonce (for traceability)
+    pub warrant_nonce: u64,
+    
+    /// File that was targeted
+    pub file_id: String,
+    
+    /// Action that was attempted
+    pub action: EvictionAction,
+    
+    /// Whether execution succeeded
+    pub success: bool,
+    
+    /// If failed, why?
+    pub error: Option<ExecutionError>,
+    
+    /// When execution completed (success or failure)
+    pub completed_at: u64,
+    
+    /// Optional details for audit
+    pub audit_detail: Option<String>,
+}
+
+/// Execution errors (Executioner reports, does NOT fix)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExecutionError {
+    /// File not found on filesystem
+    FileNotFound,
+    
+    /// Permission denied (file locked or owned by system)
+    PermissionDenied,
+    
+    /// Disk I/O error
+    IoError(String),
+    
+    /// File is still being read (Quiesce not honored)
+    FileLocked,
+    
+    /// Warrant has been used already (nonce duplicate)
+    WarrantAlreadyExecuted,
+    
+    /// Warrant missing from Ledger
+    WarrantNotInLedger,
+    
+    /// System is in Global Quiesce (cannot execute individual warrants)
+    SystemQuiesced,
+}
+
+// ============================================================
+// 3. QUIESCE CONTRACT - "Giao thức nhường nhịn"
+// ============================================================
+
+/// Signal from Court to Workers
+/// 
+/// Workers MUST check this before accessing a file
+/// Violation = data corruption (unprovable state transition)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QuiesceSignal {
+    /// No restrictions, proceed normally
+    None,
+    
+    /// Specific file is pending execution
+    /// Workers using this file must yield after this deadline
+    Pending { 
+        file_id_hash: u64,  // Hashed file_id for fast comparison
+        deadline_unix_sec: u64,  // HARD deadline (no extensions)
+    },
+    
+    /// Global purge in progress
+    /// All workers must drain and exit, except system services
+    Global {
+        deadline_unix_sec: u64,
+    },
+}
+
+impl QuiesceSignal {
+    /// Check if this signal applies to a specific file
+    pub fn applies_to(&self, file_id_hash: u64) -> bool {
+        match self {
+            QuiesceSignal::None => false,
+            QuiesceSignal::Pending { file_id_hash: target_hash, .. } => *target_hash == file_id_hash,
+            QuiesceSignal::Global { .. } => true,
+        }
+    }
+    
+    /// Check if deadline has been exceeded
+    pub fn is_expired(&self) -> bool {
+        let now = current_timestamp();
+        match self {
+            QuiesceSignal::None => false,
+            QuiesceSignal::Pending { deadline_unix_sec, .. } => now > *deadline_unix_sec,
+            QuiesceSignal::Global { deadline_unix_sec } => now > *deadline_unix_sec,
+        }
+    }
+    
+    /// Get remaining time until deadline
+    pub fn time_to_deadline(&self) -> Option<u64> {
+        let now = current_timestamp();
+        match self {
+            QuiesceSignal::None => None,
+            QuiesceSignal::Pending { deadline_unix_sec, .. } => {
+                if now < *deadline_unix_sec {
+                    Some(deadline_unix_sec - now)
+                } else {
+                    Some(0)
+                }
+            }
+            QuiesceSignal::Global { deadline_unix_sec } => {
+                if now < *deadline_unix_sec {
+                    Some(deadline_unix_sec - now)
+                } else {
+                    Some(0)
+                }
+            }
+        }
+    }
+}
+
+/// Quiesce state machine
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QuiesceState {
+    /// No quiesce active
+    Active,
+    
+    /// Pending quiesce, workers can still proceed but must check deadline
+    Transitioning,
+    
+    /// Hard quiesce, system locked
+    Locked,
+    
+    /// Escalation needed (deadline exceeded, workers not yielding)
+    Escalated,
+}
+
+// ============================================================
+// 4. EXECUTIONER TRAIT - API Contract (IMMUTABLE)
+// ============================================================
+
+/// The Executioner trait: **defines ONE method only**
+/// 
+/// Any expansion of this trait is a violation of Mission 012B principles.
+/// If execution needs new capability, add to Ledger/Court, NOT here.
+pub trait Executioner {
+    /// Execute a single warrant
+    /// 
+    /// Contract:
+    ///   - Warrant MUST have valid Ledger reference
+    ///   - Executioner does NOT read EvictionPolicy
+    ///   - Executioner does NOT validate decision (Court did that)
+    ///   - On failure, report error but do NOT retry or modify action
+    fn execute(&mut self, warrant: ExecutionWarrant) -> Result<ExecutionReport, ExecutionError>;
+}
+
+// ============================================================
+// 5. SOFT-DELETE DEFINITION (LOGICAL EXILE)
+// ============================================================
+
+/// Soft-delete behavior in TachFileTo
+/// 
+/// CRITICAL: This is NOT file deletion in the OS sense!
+/// 
+/// Implementation:
+///   1. File is removed from CacheRegistry
+///   2. File path is moved to "Ghost" list in Ledger
+///   3. File is physically left on disk untouched
+///
+/// Why: If system crashes or user changes mind, file data is safe
+///
+/// Cleanup: Ghost files are cleaned by Startup Scan or explicit Hard-delete
+pub struct SoftDeleteSpec {
+    /// File ID to be logically exiled
+    pub file_id: String,
+    
+    /// Reason for exile (audit trail)
+    pub reason: String,
+    
+    /// Can user recover this file?
+    pub is_reversible: bool,
+}
+
+// ============================================================
+// 6. PROOF OF ORIGIN - Ghost File Validation
+// ============================================================
+
+/// Naming Contract for TachFileTo cache files
+/// 
+/// All valid cache files MUST match this pattern:
+/// `TFT_<ContentHash>_<PageID>_<CreatedTimestamp>.tft_cache`
+/// 
+/// This prevents accidental deletion of non-TachFileTo files in shared directories
+#[derive(Debug)]
+pub struct NamingContract;
+
+impl NamingContract {
+    /// Check if file name follows TachFileTo contract
+    /// 
+    /// Returns: (valid, reasons)
+    pub fn validate(file_name: &str) -> (bool, Vec<String>) {
+        let mut reasons = Vec::new();
+        
+        // Check prefix
+        if !file_name.starts_with("TFT_") {
+            reasons.push("Missing 'TFT_' prefix".to_string());
+            return (false, reasons);
+        }
+        
+        // Check suffix
+        if !file_name.ends_with(".tft_cache") {
+            reasons.push("Missing '.tft_cache' suffix".to_string());
+            return (false, reasons);
+        }
+        
+        // Parse structure: TFT_<hash>_<page>_<timestamp>.tft_cache
+        let middle = file_name
+            .strip_prefix("TFT_")
+            .and_then(|s| s.strip_suffix(".tft_cache"));
+        
+        if let Some(parts_str) = middle {
+            let parts: Vec<&str> = parts_str.split('_').collect();
+            if parts.len() < 3 {
+                reasons.push("Invalid format: need at least 3 underscore-separated parts".to_string());
+                return (false, reasons);
+            }
+            
+            // Validate timestamp (4th part) is numeric
+            if let Some(ts_part) = parts.get(2) {
+                if !ts_part.chars().all(|c| c.is_numeric()) {
+                    reasons.push("Timestamp part is not numeric".to_string());
+                    return (false, reasons);
+                }
+            }
+            
+            (true, reasons)
+        } else {
+            reasons.push("Invalid structure".to_string());
+            (false, reasons)
+        }
+    }
+    
+    /// Classify a file found on disk
+    pub fn classify(file_name: &str) -> FileOrigin {
+        let (valid, _) = Self::validate(file_name);
+        if valid {
+            FileOrigin::Ghost  // Valid TFT file, even if not in Registry
+        } else {
+            FileOrigin::Alien  // Not a TFT file, do not touch!
+        }
+    }
+}
+
+/// Classification of files found on disk during Startup Scan
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum FileOrigin {
+    /// File matches Naming Contract and can be cleaned during Ghost cleanup
+    Ghost,
+    
+    /// File does not match Naming Contract, must NOT be deleted
+    Alien,
+}
+
+// ============================================================
+// 7. PROTOCOL 000 - PURGE-ALL (Giao thức Hủy diệt)
+// ============================================================
+
+/// Protocol for mass eviction
+/// 
+/// NEVER a simple `for` loop!
+/// Must follow 2-Phase Commit:
+///   Phase 1: Quiesce (stop new tasks, drain running tasks)
+///   Phase 2: Execute (remove Registry entries, then physical files)
+///
+/// Failure recovery:
+///   If crash during Phase 2: Startup Scan cleans Ghost files based on Ledger
+pub struct PurgeAllProtocol {
+    /// Is purge-all currently enabled in policy?
+    pub enabled: bool,
+    
+    /// Current phase
+    pub phase: u8,
+    
+    /// Files marked for deletion (from Ledger)
+    pub targets: Vec<String>,
+}
+
+impl PurgeAllProtocol {
+    pub fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            phase: 0,  // Pre-Phase 1
+            targets: Vec::new(),
+        }
+    }
+    
+    /// Phase 1: Issue Global Quiesce
+    pub fn phase_1_quiesce(&mut self, deadline_sec: u64) -> QuiesceSignal {
+        self.phase = 1;
+        QuiesceSignal::Global {
+            deadline_unix_sec: current_timestamp() + deadline_sec,
+        }
+    }
+    
+    /// Phase 2: Collect targets from Registry
+    pub fn phase_2_collect_targets(&mut self, registry: &CacheRegistry) {
+        self.phase = 2;
+        self.targets = registry
+            .entries()
+            .keys()
+            .cloned()
+            .collect();
+    }
+    
+    /// Phase 3: Clear Registry (logical)
+    pub fn phase_3_clear_registry(&mut self) -> usize {
+        self.phase = 3;
+        self.targets.len()
+    }
+    
+    /// Phase 4: Execute physical deletion
+    pub fn phase_4_execute(&mut self) -> Vec<ExecutionReport> {
+        self.phase = 4;
+        Vec::new()  // To be filled by actual Executioner implementation
+    }
+}
+
+// ============================================================
+// 8. LEDGER INTEGRATION (Write-Ahead Warrant)
+// ============================================================
+
+/// Ledger entry for a warrant (before execution)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LedgerEntry {
+    /// Warrant nonce (unique key)
+    pub warrant_nonce: u64,
+    
+    /// Current state of warrant
+    pub state: WarrantState,
+    
+    /// When entry was created
+    pub created_at: u64,
+    
+    /// When execution completed (if applicable)
+    pub completed_at: Option<u64>,
+    
+    /// The actual verdict
+    pub verdict: String,  // Serialized EvictionVerdict
+    
+    /// Execution result (if completed)
+    pub result: Option<ExecutionReport>,
+}
+
+/// State machine for warrants
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum WarrantState {
+    /// Warrant issued, awaiting execution
+    Pending,
+    
+    /// Execution in progress
+    Executing,
+    
+    /// Successfully executed
+    Committed,
+    
+    /// Execution failed (permanent error)
+    Failed,
+    
+    /// Warrant revoked (reversed by user or system)
+    Revoked,
+}
+
+// ============================================================
+// 9. HELPER FUNCTIONS
+// ============================================================
+
+/// Get current UNIX timestamp
+fn current_timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// Simple hash for file ID (for Quiesce pending check)
+pub fn hash_file_id(file_id: &str) -> u64 {
+    // Simple FNV-1a hash for demonstration
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in file_id.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+// ============================================================
+// 10. TESTS
+// ============================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::resource_court::{EvictionVerdict, EvictionAction};
+
+    #[test]
+    fn test_execution_warrant_creation() {
+        let verdict = EvictionVerdict {
+            file_id: "test_file".to_string(),
+            action: EvictionAction::SoftDelete,
+            reason: "Test".to_string(),
+            score: 0.7,
+            timestamp: current_timestamp(),
+            is_reversible: true,
+        };
+        
+        let warrant = ExecutionWarrant::new(verdict, 12345);
+        
+        assert_eq!(warrant.nonce, 12345);
+        assert!(warrant.is_valid());
+        assert_eq!(warrant.warrant_id(), "WARRANT_0000000000003039");
+    }
+
+    #[test]
+    fn test_quiesce_signal_expiration() {
+        let now = current_timestamp();
+        
+        let signal_future = QuiesceSignal::Pending {
+            file_id_hash: 42,
+            deadline_unix_sec: now + 60,
+        };
+        
+        assert!(!signal_future.is_expired());
+        assert_eq!(signal_future.time_to_deadline(), Some(60));
+        
+        let signal_past = QuiesceSignal::Pending {
+            file_id_hash: 42,
+            deadline_unix_sec: now - 10,
+        };
+        
+        assert!(signal_past.is_expired());
+    }
+
+    #[test]
+    fn test_naming_contract_validation() {
+        // Valid name
+        let valid_name = "TFT_a1b2c3d4_page_001_1234567890.tft_cache";
+        let (valid, _) = NamingContract::validate(valid_name);
+        assert!(valid);
+        
+        // Invalid: missing prefix
+        let invalid_prefix = "cache_a1b2c3d4_page_001_1234567890.tft_cache";
+        let (valid, reasons) = NamingContract::validate(invalid_prefix);
+        assert!(!valid);
+        assert!(reasons.iter().any(|r| r.contains("TFT_")));
+        
+        // Invalid: missing suffix
+        let invalid_suffix = "TFT_a1b2c3d4_page_001_1234567890.tmp";
+        let (valid, reasons) = NamingContract::validate(invalid_suffix);
+        assert!(!valid);
+        assert!(reasons.iter().any(|r| r.contains("tft_cache")));
+    }
+
+    #[test]
+    fn test_file_origin_classification() {
+        let ghost_file = "TFT_abc123_page_001_1609459200.tft_cache";
+        assert_eq!(NamingContract::classify(ghost_file), FileOrigin::Ghost);
+        
+        let user_file = "my_important_document.pdf";
+        assert_eq!(NamingContract::classify(user_file), FileOrigin::Alien);
+    }
+
+    #[test]
+    fn test_quiesce_file_specific() {
+        let file_id = "test_file_123";
+        let file_hash = hash_file_id(file_id);
+        
+        let signal = QuiesceSignal::Pending {
+            file_id_hash: file_hash,
+            deadline_unix_sec: current_timestamp() + 60,
+        };
+        
+        assert!(signal.applies_to(file_hash));
+        assert!(!signal.applies_to(file_hash + 1));
+    }
+
+    #[test]
+    fn test_quiesce_global_applies_to_all() {
+        let signal = QuiesceSignal::Global {
+            deadline_unix_sec: current_timestamp() + 60,
+        };
+        
+        assert!(signal.applies_to(100));
+        assert!(signal.applies_to(999));
+        assert!(signal.applies_to(0));
+    }
+}
