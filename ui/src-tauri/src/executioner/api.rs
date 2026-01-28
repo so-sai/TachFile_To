@@ -248,7 +248,7 @@ impl PurgeAllProtocol {
 
     pub fn phase_2_collect_targets(&mut self, registry: &CacheRegistry) {
         self.phase = 2;
-        self.targets = registry.entries().keys().cloned().collect();
+        self.targets = registry.get_entries_snapshot().keys().cloned().collect();
     }
 
     pub fn phase_3_clear_registry(&mut self) -> usize {

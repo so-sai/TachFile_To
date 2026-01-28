@@ -12,6 +12,8 @@ pub mod api;
 pub mod ledger;
 pub mod executor;
 pub mod recovery;
+pub mod discipline;
+pub mod parallel_engine;
 
 #[cfg(test)]
 mod phase_3_tests;
@@ -27,3 +29,7 @@ pub use ledger::{SqliteLedger, LedgerBackend, WarrantEntry, ExecutionEventEntry,
 pub use executor::FilesystemExecutioner;
 
 pub use recovery::{Janitor, JanitorReport, JanitorError};
+pub use discipline::{
+    QuiesceGate, QuiesceDecision, FrameBudget, BudgetDecision,
+    PressureMonitor, PressureDecision, DisciplineGuard, DisciplineDecision,
+};

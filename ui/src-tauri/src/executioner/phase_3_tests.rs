@@ -20,7 +20,6 @@ mod phase_3_tests {
 
     use crate::executioner::{
         Janitor, JanitorReport, SqliteLedger, LedgerBackend,
-        ExecutionEventEntry, ExecutionResult,
     };
     use crate::executioner::api::NamingContract;
     use crate::executioner::ledger::WarrantEntry;

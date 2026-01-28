@@ -158,7 +158,7 @@ impl Janitor {
         }
 
         // Lấy danh sách entries trong Registry (HashMap<file_id, CacheEntry>)
-        let registry_entries = registry.entries();
+        let registry_entries = registry.get_entries_snapshot();
 
         // Scan cache directory
         let entries = fs::read_dir(&self.cache_dir)

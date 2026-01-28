@@ -11,8 +11,6 @@
 use rusqlite::{Connection, params, OptionalExtension, Result as SqliteResult};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
-use crate::resource_court::EvictionVerdict;
 
 // ============================================================
 // TYPES
@@ -126,6 +124,9 @@ impl SqliteLedger {
         // Enable strict mode and WAL
         conn.execute_batch("PRAGMA journal_mode = WAL;")?;
         conn.execute_batch("PRAGMA synchronous = FULL;")?;
+        
+        // Anti-contention: 5s timeout
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
 
         // Create tables if not exist
         Self::init_schema(&conn)?;
@@ -139,6 +140,9 @@ impl SqliteLedger {
 
         conn.execute_batch("PRAGMA journal_mode = WAL;")?;
         conn.execute_batch("PRAGMA synchronous = FULL;")?;
+        
+        // Anti-contention: 5s timeout
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
 
         Self::init_schema(&conn)?;
 
@@ -392,12 +396,7 @@ impl LedgerBackend for SqliteLedger {
 // HELPER FUNCTIONS
 // ============================================================
 
-fn current_timestamp() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
+use crate::executioner::api::current_timestamp;
 
 // ============================================================
 // TESTS
