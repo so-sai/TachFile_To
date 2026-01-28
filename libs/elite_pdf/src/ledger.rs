@@ -54,7 +54,7 @@ pub fn check_file_processed(hash: &str) -> Result<Option<IngestionRecord>> {
         "SELECT file_hash, file_path, page_count, status, processed_at 
          FROM pdf_ingestion WHERE file_hash = ?",
     )?;
-    
+
     let mut rows = stmt.query(params![hash])?;
 
     if let Some(row) = rows.next()? {
