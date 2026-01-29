@@ -14,6 +14,7 @@ pub mod executor;
 pub mod recovery;
 pub mod discipline;
 pub mod parallel_engine;
+pub mod idle_controller;
 
 #[cfg(test)]
 mod phase_3_tests;
@@ -33,3 +34,4 @@ pub use discipline::{
     QuiesceGate, QuiesceDecision, FrameBudget, BudgetDecision,
     PressureMonitor, PressureDecision, DisciplineGuard, DisciplineDecision,
 };
+pub use idle_controller::IdleController;

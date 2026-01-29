@@ -17,6 +17,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
+use dashmap::DashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 // ============================================================
 // 1. DOMAIN MODELS
@@ -123,59 +125,64 @@ pub struct EvictionPolicy {
 // ============================================================
 
 /// The Registry - keeps facts, makes NO decisions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct CacheRegistry {
-    entries: HashMap<String, CacheEntry>,
-    total_size_bytes: u64,
-    last_updated: u64,
+    entries: DashMap<String, CacheEntry>,
+    total_size_bytes: AtomicU64,
+    last_updated: AtomicU64,
 }
 
 impl CacheRegistry {
     /// Create new empty registry
     pub fn new() -> Self {
         Self {
-            entries: HashMap::new(),
-            total_size_bytes: 0,
-            last_updated: current_timestamp(),
+            entries: DashMap::new(),
+            total_size_bytes: AtomicU64::new(0),
+            last_updated: AtomicU64::new(current_timestamp()),
         }
     }
 
     /// Register a file (observation only, no judgment)
-    pub fn register_entry(&mut self, entry: CacheEntry) {
-        self.total_size_bytes += entry.file_size_bytes;
+    pub fn register_entry(&self, entry: CacheEntry) {
+        self.total_size_bytes.fetch_add(entry.file_size_bytes, Ordering::SeqCst);
         self.entries.insert(entry.file_id.clone(), entry);
-        self.last_updated = current_timestamp();
+        self.last_updated.store(current_timestamp(), Ordering::SeqCst);
     }
 
     /// Update access time for a file
-    pub fn touch_entry(&mut self, file_id: &str) -> bool {
-        if let Some(entry) = self.entries.get_mut(file_id) {
+    pub fn touch_entry(&self, file_id: &str) -> bool {
+        if let Some(mut entry) = self.entries.get_mut(file_id) {
             entry.last_accessed_at = current_timestamp();
             entry.access_count += 1;
-            self.last_updated = current_timestamp();
+            self.last_updated.store(current_timestamp(), Ordering::SeqCst);
             true
         } else {
             false
         }
     }
 
-    /// Get all entries (for iteration by Court)
-    pub fn entries(&self) -> &HashMap<String, CacheEntry> {
-        &self.entries
-    }
-
-    /// Get total registered cache size
-    pub fn total_size_bytes(&self) -> u64 {
-        self.total_size_bytes
-    }
-
     /// Statistics (informational only)
     pub fn stats(&self) -> RegistryStats {
         RegistryStats {
             entry_count: self.entries.len(),
-            total_size_bytes: self.total_size_bytes,
-            last_updated: self.last_updated,
+            total_size_bytes: self.total_size_bytes.load(Ordering::SeqCst),
+            last_updated: self.last_updated.load(Ordering::SeqCst),
         }
+    }
+
+    /// Provide access to inner entries (for Court)
+    pub fn get_entries_snapshot(&self) -> HashMap<String, CacheEntry> {
+        self.entries.iter().map(|item| (item.key().clone(), item.value().clone())).collect()
+    }
+
+    /// Get total registered cache size
+    pub fn total_size_bytes(&self) -> u64 {
+        self.total_size_bytes.load(Ordering::SeqCst)
+    }
+
+    /// Check if entry exists
+    pub fn contains_key(&self, file_id: &str) -> bool {
+        self.entries.contains_key(file_id)
     }
 }
 
@@ -273,7 +280,7 @@ impl ResourceCourt {
         let mut verdicts = Vec::new();
         let current_time = current_timestamp();
 
-        for entry in registry.entries().values() {
+        for entry in registry.get_entries_snapshot().values() {
             // Calculate entropy for this entry
             let entropy = calculate_entropy(&entry);
 
@@ -441,7 +448,7 @@ mod tests {
         registry.register_entry(entry.clone());
 
         assert_eq!(registry.total_size_bytes(), 1024 * 1024);
-        assert_eq!(registry.entries().len(), 1);
+        assert_eq!(registry.stats().entry_count, 1);
         assert!(registry.touch_entry("file1"));
         assert!(!registry.touch_entry("nonexistent"));
     }

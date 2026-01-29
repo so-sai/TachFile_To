@@ -5,10 +5,10 @@
 // Tuân thủ SYSTEM_CONTRACT_V1.2.1: Tách nhỏ PDF thành các mảnh
 
 use crate::engine_context::{EngineContext, OperatingMode};
-use crate::mupdf_text::{EliteTextPage, FzStextPage};
-use crate::semantic::engine::SemanticEngine;
+pub use crate::semantic::engine::engine::SemanticEngine;
 use rayon::prelude::*;
 use std::sync::Arc;
+use crate::Error;
 
 /// Dispatch Engine xử lý đa luồng theo Operating Mode
 pub struct ParallelDispatcher {
@@ -17,19 +17,24 @@ pub struct ParallelDispatcher {
     mode: OperatingMode,
 }
 
+
 impl ParallelDispatcher {
     pub fn new(engine_context: Arc<EngineContext>) -> Self {
         let mode = {
             let ctx_ref = engine_context.as_ref();
             match &ctx_ref.mode {
-                OperatingMode::Normal { .. } => OperatingMode::Normal {
-                    ram_gb: ctx_ref.mode.clone().unwrap().ram_gb,
-                    logical_cores: ctx_ref.mode.clone().unwrap().logical_cores,
-                    simd_enabled: ctx_ref.mode.clone().unwrap().simd_enabled,
+                OperatingMode::Normal {
+                    ram_gb,
+                    logical_cores,
+                    simd_enabled,
+                } => OperatingMode::Normal {
+                    ram_gb: *ram_gb,
+                    logical_cores: *logical_cores,
+                    simd_enabled: *simd_enabled,
                 },
-                OperatingMode::Limp { .. } => OperatingMode::Limp {
-                    reason: "System degraded".to_string(),
-                    remaining_features: vec!["Single-threaded".to_string()],
+                OperatingMode::Limp { reason, remaining_features } => OperatingMode::Limp {
+                    reason: reason.clone(),
+                    remaining_features: remaining_features.clone(),
                 },
             }
         };
@@ -64,13 +69,13 @@ impl ParallelDispatcher {
     /// NORMAL MODE: Xử lý đa luồng tối ưu
     fn process_normal_mode(
         &self,
-        doc: &crate::EliteDocument,
+        _doc: &crate::EliteDocument,
         page_count: i32,
-        logical_cores: u32,
-        simd_enabled: bool,
+        logical_cores: usize,
+        _simd_enabled: bool,
     ) -> Result<Vec<String>, crate::Error> {
         // Quyết định số worker threads (không vượt quá số trang)
-        let num_workers = std::cmp::min(logical_cores, page_count as u32);
+        let num_workers = std::cmp::min(logical_cores, page_count as usize);
         println!(
             "   🛡️ Using {} worker threads for parallel processing",
             num_workers
@@ -80,15 +85,15 @@ impl ParallelDispatcher {
         let page_indices: Vec<i32> = (0..page_count).collect();
 
         // Rayon parallel processing
-        let results: Result<Vec<_>, _> = page_indices
+        let results: Result<Vec<String>, Error> = page_indices
             .par_iter() // Chuyển sang parallel iterator
             .with_min_len(1) // Đảm bảo mỗi worker có ít nhất 1 trang
-            .map(|page_index| {
+            .map(|&page_index: &i32| -> Result<String, Error> {
                 // Mỗi worker có EngineContext riêng thông qua Arc
-                let local_engine = SemanticEngine::new(&self.engine_context);
+                let engine = SemanticEngine::new(&self.engine_context);
 
                 // Xử lý trang đơn lẻ
-                match local_engine.process_page_with_context(page_index, &self.engine_context) {
+                match engine.process_page_with_context(page_index, &self.engine_context) {
                     Ok(markdown) => {
                         println!(
                             "   ✅ Page {} processed: {} chars",
@@ -99,7 +104,7 @@ impl ParallelDispatcher {
                     }
                     Err(e) => {
                         eprintln!("   ❌ Page {} failed: {:?}", page_index + 1, e);
-                        Err(e)
+                        Err(Error::ParallelProcessingFailed(format!("{:?}", e)))
                     }
                 }
             })
@@ -126,7 +131,7 @@ impl ParallelDispatcher {
     /// LIMP MODE: Xử lý tuần tự để tiết kiệm tài nguyên
     fn process_limp_mode(
         &self,
-        doc: &crate::EliteDocument,
+        _doc: &crate::EliteDocument,
         page_count: i32,
     ) -> Result<Vec<String>, crate::Error> {
         println!("   ⚠️  LIMP MODE: Processing pages sequentially...");
@@ -186,7 +191,7 @@ impl ParallelDispatcher {
 #[derive(Debug, Clone)]
 pub struct PerformanceStats {
     pub strategy: String,
-    pub cores_used: u32,
+    pub cores_used: usize,
     pub pages_per_second: f64,
     pub total_pages: i32,
     pub processing_time_ms: u64,

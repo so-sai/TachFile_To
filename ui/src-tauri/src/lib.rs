@@ -10,33 +10,41 @@
 mod dashboard;
 mod excel_engine;
 mod normalizer;
-mod commands; // NEW: Mission 2026-001
-pub mod core_contract; // NEW: iron_core Embassy (Mission 2026-001)
-pub mod resource_court; // NEW: Mission 012A - ResourceCourt (Tam Quyền Phân Lập)
-pub mod executioner; // NEW: Mission 012B - Executioner & Quiesce Protocol (Phase 1: API)
-// Phase 2 modules (executor, recovery) will be added when implementation begins
+mod commands; 
+pub mod core_contract;
+pub mod resource_court;
+pub mod executioner;
+mod telemetry;
+mod telemetry_state;
 
 use excel_engine::ExcelAppState;
-use commands::validate_file; // Import new module
+use commands::validate_file;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .manage(ExcelAppState::default())
+        .setup(|app| {
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                telemetry::start_telemetry_loop(handle).await;
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            // Legacy V2.5 Commands
             excel_engine::excel_load_file,
             excel_engine::excel_select_sheet,
             excel_engine::excel_get_window,
             excel_engine::excel_total_rows,
             dashboard::get_dashboard_summary,
             normalizer::cmd_normalize_descriptions,
-            // New Mission 2026-001 Commands
             validate_file::validate_file,
             validate_file::extract_file,
+            validate_file::get_ledger_entries,
             validate_file::generate_mock_ingestion
         ])
-
         .run(tauri::generate_context!())
         .expect("Lỗi khi chạy Tauri application");
 }

@@ -1,7 +1,7 @@
 use crate::cache_registry::CacheRegistry;
-use crate::prefetch_engine::{IntentAwarePrefetcher, PrefetchType};
+use crate::prefetch_engine::IntentAwarePrefetcher;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -61,11 +61,11 @@ impl BackpressureController {
         }
     }
 
-    pub fn submit_work(&self, work_item: WorkItem) -> Result<(), String> {
+    pub fn submit_work(&self, work_item: WorkItem) -> Result<(), crate::Error> {
         // Check backpressure conditions
         if self.should_reject_work(&work_item) {
             *self.rejected_due_to_pressure.lock().unwrap() += 1;
-            return Err("Work rejected due to backpressure".to_string());
+            return Err(crate::Error::Other("Work rejected due to backpressure".to_string()));
         }
 
         // Add to queue
@@ -103,13 +103,18 @@ impl BackpressureController {
 
         // 3. Check specific cache pressure for work type
         match work_item.work_type {
-            WorkType::SemanticExtraction | WorkType::Both => {
+            WorkType::SemanticExtraction => {
                 if !self.cache.can_accept_semantic_work() {
                     return true;
                 }
             }
-            WorkType::ImageRendering | WorkType::Both => {
+            WorkType::ImageRendering => {
                 if !self.cache.can_accept_image_work() {
+                    return true;
+                }
+            }
+            WorkType::Both => {
+                if !self.cache.can_accept_semantic_work() || !self.cache.can_accept_image_work() {
                     return true;
                 }
             }
@@ -168,7 +173,7 @@ impl BackpressureController {
         }
     }
 
-    fn process_work_item(work_item: &WorkItem, cache: &CacheRegistry) -> Result<(), String> {
+    fn process_work_item(work_item: &WorkItem, cache: &CacheRegistry) -> Result<(), crate::Error> {
         match work_item.work_type {
             WorkType::SemanticExtraction => {
                 // Simulate semantic extraction work

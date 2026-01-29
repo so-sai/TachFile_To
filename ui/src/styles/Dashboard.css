@@ -165,6 +165,18 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* FFI LOCK PULSE - MISSION 013 */
+@keyframes ffi-lock-vibration {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.ffi-lock-active {
+  animation: ffi-lock-vibration 1.5s infinite;
+  border-color: #DC2626 !important;
+}
+
 /* Review Required Vibration (Neon Yellow) */
 @keyframes vibration {
   0% {

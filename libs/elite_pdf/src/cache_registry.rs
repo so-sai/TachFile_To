@@ -1,5 +1,5 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use dashmap::DashMap;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
@@ -28,13 +28,12 @@ pub enum CacheEntry {
 
 #[derive(Debug)]
 pub struct CacheRegistry {
-    // L1 Semantic Cache - Deterministic & Bounded (max 100MB)
-    semantic_cache: Arc<RwLock<BTreeMap<u32, SemanticBlock>>>,
+    // L1 Semantic Cache - DashMap for Lock-free sharding
+    semantic_cache: Arc<DashMap<u32, SemanticBlock>>,
     semantic_memory_usage: Arc<Mutex<usize>>, // in bytes
 
-    // L2 Image Cache - LRU & Memory-aware (max 500MB)
-    image_cache: Arc<RwLock<HashMap<u32, ImageBlock>>>,
-    image_access_order: Arc<Mutex<VecDeque<u32>>>,
+    // L2 Image Cache - DashMap for LRU & Memory-aware
+    image_cache: Arc<DashMap<u32, ImageBlock>>,
     image_memory_usage: Arc<Mutex<usize>>, // in bytes
 
     // Configuration
@@ -45,10 +44,9 @@ pub struct CacheRegistry {
 impl CacheRegistry {
     pub fn new() -> Self {
         Self {
-            semantic_cache: Arc::new(RwLock::new(BTreeMap::new())),
+            semantic_cache: Arc::new(DashMap::new()),
             semantic_memory_usage: Arc::new(Mutex::new(0)),
-            image_cache: Arc::new(RwLock::new(HashMap::new())),
-            image_access_order: Arc::new(Mutex::new(VecDeque::new())),
+            image_cache: Arc::new(DashMap::new()),
             image_memory_usage: Arc::new(Mutex::new(0)),
             max_semantic_memory: 100 * 1024 * 1024, // 100MB
             max_image_memory: 500 * 1024 * 1024,    // 500MB
@@ -56,11 +54,8 @@ impl CacheRegistry {
     }
 
     pub fn get_semantic(&self, page_id: u32) -> Option<SemanticBlock> {
-        let cache = self.semantic_cache.read().unwrap();
-        if let Some(block) = cache.get(&page_id) {
-            // Update last accessed time
-            drop(cache);
-            self.update_semantic_access_time(page_id);
+        if let Some(mut block) = self.semantic_cache.get_mut(&page_id) {
+            block.last_accessed = current_timestamp();
             Some(block.clone())
         } else {
             None
@@ -72,30 +67,25 @@ impl CacheRegistry {
 
         // Calculate memory impact
         let content_size = block.content.len();
-        let bbox_size = block.bbox_metadata.len() * 16; // 4 floats per bbox
-        let total_size = content_size + bbox_size + 64; // overhead
+        let bbox_size = block.bbox_metadata.len() * 16;
+        let total_size = content_size + bbox_size + 64;
 
         // Check if we need to evict
         {
-            let mut usage = self.semantic_memory_usage.lock().unwrap();
-            if *usage + total_size > self.max_semantic_memory {
-                drop(usage);
+            let usage = *self.semantic_memory_usage.lock().unwrap();
+            if usage + total_size > self.max_semantic_memory {
                 self.evict_semantic_lru(total_size)?;
             }
         }
 
         // Insert new block
         {
-            let mut cache = self.semantic_cache.write().unwrap();
             let mut usage = self.semantic_memory_usage.lock().unwrap();
-
-            // Remove old entry if exists
-            if let Some(old_block) = cache.get(&page_id) {
+            if let Some(old_block) = self.semantic_cache.get(&page_id) {
                 let old_size = old_block.content.len() + old_block.bbox_metadata.len() * 16 + 64;
                 *usage = usage.saturating_sub(old_size);
             }
-
-            cache.insert(page_id, block);
+            self.semantic_cache.insert(page_id, block);
             *usage += total_size;
         }
 
@@ -103,11 +93,8 @@ impl CacheRegistry {
     }
 
     pub fn get_image(&self, page_id: u32) -> Option<ImageBlock> {
-        let cache = self.image_cache.read().unwrap();
-        if let Some(block) = cache.get(&page_id) {
-            // Update access order for LRU
-            drop(cache);
-            self.update_image_access_order(page_id);
+        if let Some(mut block) = self.image_cache.get_mut(&page_id) {
+            block.last_accessed = current_timestamp();
             Some(block.clone())
         } else {
             None
@@ -116,107 +103,70 @@ impl CacheRegistry {
 
     pub fn put_image(&self, block: ImageBlock) -> Result<(), String> {
         let page_id = block.page_id;
+        let size = block.file_size;
 
         // Check if we need to evict
         {
-            let mut usage = self.image_memory_usage.lock().unwrap();
-            if *usage + block.file_size > self.max_image_memory {
-                drop(usage);
-                self.evict_image_lru(block.file_size)?;
+            let usage = *self.image_memory_usage.lock().unwrap();
+            if usage + size > self.max_image_memory {
+                self.evict_image_lru(size)?;
             }
         }
 
         // Insert new block
         {
-            let mut cache = self.image_cache.write().unwrap();
             let mut usage = self.image_memory_usage.lock().unwrap();
-            let mut access_order = self.image_access_order.lock().unwrap();
-
-            // Remove old entry if exists
-            if let Some(old_block) = cache.get(&page_id) {
+            if let Some(old_block) = self.image_cache.get(&page_id) {
                 *usage = usage.saturating_sub(old_block.file_size);
-                // Remove from old position in access order
-                access_order.retain(|&id| id != page_id);
             }
-
-            cache.insert(page_id, block);
-            access_order.push_back(page_id);
-            *usage += block.file_size;
+            self.image_cache.insert(page_id, block);
+            *usage += size;
         }
 
         Ok(())
     }
 
-    fn update_semantic_access_time(&self, page_id: u32) {
-        let mut cache = self.semantic_cache.write().unwrap();
-        if let Some(block) = cache.get_mut(&page_id) {
-            block.last_accessed = current_timestamp();
-        }
-    }
-
-    fn update_image_access_order(&self, page_id: u32) {
-        let mut access_order = self.image_access_order.lock().unwrap();
-        access_order.retain(|&id| id != page_id);
-        access_order.push_back(page_id);
-    }
-
     fn evict_semantic_lru(&self, needed_space: usize) -> Result<(), String> {
-        let mut cache = self.semantic_cache.write().unwrap();
-        let mut usage = self.semantic_memory_usage.lock().unwrap();
-
-        // Collect entries sorted by last_accessed
-        let mut entries: Vec<_> = cache.iter().collect();
+        let mut freed_space = 0;
+        let mut entries: Vec<_> = self.semantic_cache.iter().map(|r| (*r.key(), r.value().clone())).collect();
         entries.sort_by_key(|(_, block)| block.last_accessed);
 
-        let mut freed_space = 0;
-        for (&page_id, block) in entries {
-            let block_size = block.content.len() + block.bbox_metadata.len() * 16 + 64;
-            
-            if freed_space >= needed_space {
-                break;
-            }
-            
-            // Only evict verified blocks that are not recently accessed
+        for (page_id, block) in entries {
+            if freed_space >= needed_space { break; }
             let now = current_timestamp();
-            if block.is_verified && (now - block.last_accessed) > 300 { // 5 minutes
-                cache.remove(&page_id);
-                *usage = usage.saturating_sub(block_size);
-                freed_space += block_size;
+            if block.is_verified && (now - block.last_accessed) > 300 {
+                if self.semantic_cache.remove(&page_id).is_some() {
+                    let block_size = block.content.len() + block.bbox_metadata.len() * 16 + 64;
+                    let mut usage = self.semantic_memory_usage.lock().unwrap();
+                    *usage = usage.saturating_sub(block_size);
+                    freed_space += block_size;
+                }
             }
         }
 
         if freed_space < needed_space {
             return Err("Cannot free enough semantic memory".to_string());
         }
-
         Ok(())
     }
 
     fn evict_image_lru(&self, needed_space: usize) -> Result<(), String> {
-        let mut cache = self.image_cache.write().unwrap();
-        let mut access_order = self.image_access_order.lock().unwrap();
-        let mut usage = self.image_memory_usage.lock().unwrap();
-
         let mut freed_space = 0;
-        
-        while let Some(&page_id) = access_order.front() {
-            if freed_space >= needed_space {
-                break;
-            }
-            
-            if let Some(block) = cache.get(&page_id) {
-                cache.remove(&page_id);
+        let mut entries: Vec<_> = self.image_cache.iter().map(|r| (*r.key(), r.clone())).collect();
+        entries.sort_by_key(|(_, block)| block.last_accessed);
+
+        for (page_id, block) in entries {
+            if freed_space >= needed_space { break; }
+            if self.image_cache.remove(&page_id).is_some() {
+                let mut usage = self.image_memory_usage.lock().unwrap();
                 *usage = usage.saturating_sub(block.file_size);
                 freed_space += block.file_size;
             }
-            
-            access_order.pop_front();
         }
 
         if freed_space < needed_space {
             return Err("Cannot free enough image memory".to_string());
         }
-
         Ok(())
     }
 
@@ -238,9 +188,8 @@ impl CacheRegistry {
     }
 
     pub fn clear(&self) {
-        self.semantic_cache.write().unwrap().clear();
-        self.image_cache.write().unwrap().clear();
-        self.image_access_order.lock().unwrap().clear();
+        self.semantic_cache.clear();
+        self.image_cache.clear();
         *self.semantic_memory_usage.lock().unwrap() = 0;
         *self.image_memory_usage.lock().unwrap() = 0;
     }

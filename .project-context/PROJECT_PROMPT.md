@@ -2,7 +2,7 @@
 
 **IIP Protocol:** v1.1  
 **MDS Reference:** MDS-ELITE10-2026-v1.0  
-**Ecosystem Role:** OPTIONAL (Heavy Ingestion Tool)  
+**Ecosystem Role:** Data Ingestion Organ  
 **Project Type:** APP  
 **Owner:** so-sai
 
@@ -19,7 +19,8 @@
 ---
 
 ## 1. IDENTITY (ĐỊNH DANH)
-- **Mục tiêu:** Ứng dụng Desktop (Tauri) xử lý/tách file dữ liệu lớn, đảm bảo tính tất định (Deterministic Validation Engine) cho dự án Xây dựng.
+- **Mục tiêu:** Deterministic File Validation Engine — Engine kỹ thuật kiểm tra và chuẩn hóa dữ liệu hồ sơ xây dựng.
+- **Triết lý:** "Extracts truth from chaos — not opinions."
 - **Tech Stack:**
   - **Core:** Rust (Tauri 2.x), Polars 0.52 (Dataframe), Calamine 0.32 (Excel).
   - **UI:** React 19, TypeScript, Vite.
@@ -43,6 +44,7 @@ Agent bắt buộc phải tham chiếu các tài liệu sau trong `docs/specs/` 
   - Không sửa các file trong `docs/specs/archive/`.
   - **KHÔNG được tạo business logic hoặc ghi vào iron_core database.**
   - **KHÔNG được lưu project metadata trong UI preferences.**
+  - **KHÔNG ra quyết định thay người dùng.**
 - **An toàn:** Luôn chạy `cargo check` trước khi confirm code Rust.
 
 ## 4. DEFINITION OF DONE

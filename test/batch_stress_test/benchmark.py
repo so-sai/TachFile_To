@@ -5,6 +5,12 @@ import psutil
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
+# Fix Windows Unicode encoding for emojis
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 # Inject path to iron_python_bridge using Windows absolute path
 BRIDGE_PATH = r"E:\DEV\elite_9_VN-ecosystem\app-tool-TachFileTo\libs\iron_python_bridge\python"
 if BRIDGE_PATH not in sys.path:
@@ -31,6 +37,8 @@ def process_one_file(f_path):
         return {"file": f_path.name, "status": "OK", "latency": latency}
     except Exception as e:
         return {"file": f_path.name, "status": "ERROR", "msg": str(e), "latency": 0}
+    finally:
+        if 'data' in locals(): del data
 
 def stress_test_batch(test_dir: str, iterations: int = 5):
     """
@@ -112,4 +120,4 @@ def stress_test_batch(test_dir: str, iterations: int = 5):
 if __name__ == "__main__":
     # Windows absolute path for test directory
     TARGET_DIR = r"E:\DEV\elite_9_VN-ecosystem\app-tool-TachFileTo\test\pdf"
-    stress_test_batch(TARGET_DIR, iterations=30)
+    stress_test_batch(TARGET_DIR, iterations=50)

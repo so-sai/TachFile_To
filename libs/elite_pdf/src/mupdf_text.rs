@@ -116,8 +116,7 @@ unsafe extern "C" {
 
 /// Safe wrapper for structured text page with lifetime tethering
 pub struct EliteTextPage<'a> {
-    ctx: &'a crate::EliteContext,
-    page: &'a crate::ElitePage<'a>,
+    page: &'a crate::ElitePage,
     inner: *mut FzStextPage,
 }
 
@@ -125,15 +124,13 @@ impl<'a> EliteTextPage<'a> {
     /// Extract structured text from a page
     pub fn from_page(page: &'a crate::ElitePage) -> Result<Self, String> {
         unsafe {
-            let stext =
-                fz_new_stext_page_from_page(page.ctx.as_ptr(), page.inner, std::ptr::null());
+            let stext = fz_new_stext_page_from_page(page.ctx.as_ptr(), page.inner, std::ptr::null());
 
             if stext.is_null() {
                 return Err("Failed to extract structured text".to_string());
             }
 
             Ok(Self {
-                ctx: &page.ctx,
                 page,
                 inner: stext,
             })
@@ -141,7 +138,7 @@ impl<'a> EliteTextPage<'a> {
     }
 
     /// Get iterator over text blocks
-    pub fn blocks(&self) -> EliteTextBlockIterator {
+    pub fn blocks(&self) -> EliteTextBlockIterator<'_> {
         EliteTextBlockIterator {
             current: unsafe { (*self.inner).first_block },
             _phantom: std::marker::PhantomData,
@@ -244,7 +241,7 @@ impl<'a> Drop for EliteTextPage<'a> {
     fn drop(&mut self) {
         if !self.inner.is_null() {
             unsafe {
-                fz_drop_stext_page(self.ctx.as_ptr(), self.inner);
+                fz_drop_stext_page(self.page.ctx.as_ptr(), self.inner);
             }
             self.inner = std::ptr::null_mut();
         }

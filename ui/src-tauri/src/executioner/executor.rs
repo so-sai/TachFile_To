@@ -19,7 +19,7 @@ use crate::executioner::api::{
     ExecutionWarrant, ExecutionReport, ExecutionError, Executioner, current_timestamp,
 };
 use crate::executioner::ledger::{
-    LedgerBackend, ExecutionEventEntry, ExecutionResult,
+    LedgerBackend, ExecutionEventEntry, ExecutionResult, WarrantEntry,
 };
 use crate::resource_court::EvictionAction;
 use std::fs;

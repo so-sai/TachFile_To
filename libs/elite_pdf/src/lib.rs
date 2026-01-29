@@ -1,25 +1,74 @@
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use thiserror::Error;
 use pyo3::prelude::*;
 use std::ffi::{c_void, CString};
-use std::panic::{self, AssertUnwindSafe};
+use std::panic;
 use std::path::Path;
 use std::ptr;
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::sync::{Arc, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-mod backpressure_controller;
-mod cache_registry;
-mod engine_context;
+pub mod parallel_dispatcher;
+pub mod prefetch_engine;
+pub mod sanitizer;
+pub mod semantic;
+pub mod engine_context;
+pub mod cache_registry;
+pub mod backpressure_controller;
+pub mod output;
+pub mod mupdf_text;
 mod ledger;
-mod mupdf_text;
-mod output;
-mod parallel_dispatcher;
-mod prefetch_engine;
-mod sanitizer;
-use backpressure_controller::{BackpressureController, WorkItem, WorkType};
-use cache_registry::{CacheRegistry, ImageBlock, SemanticBlock};
-use output::OutputManager;
-use prefetch_engine::{IntentAwarePrefetcher, PrefetchType};
+
+pub use parallel_dispatcher::ParallelDispatcher;
+pub use engine_context::{EngineContext, OperatingMode};
+pub use cache_registry::{CacheRegistry, ImageBlock, SemanticBlock};
+pub use semantic::engine::engine::SemanticEngine;
+pub use backpressure_controller::BackpressureController;
+pub use output::OutputManager;
+
+// FFI support for memory status on Windows
+
+// =========================================================================
+// 0. ERROR TAXONOMY - MISSION 012B
+// =========================================================================
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("MuPDF context creation failed")]
+    ContextCreationFailed,
+    #[error("MuPDF document open failed: {0}")]
+    OpenFailed(String),
+    #[error("MuPDF page load failed: {0}")]
+    PageLoadFailed(i32),
+    #[error("Parallel processing failed: {0}")]
+    ParallelProcessingFailed(String),
+    #[error("Limp mode processing failed: {0}")]
+    LimpModeProcessingFailed(String),
+    #[error("Resource locked by system (Windows ERROR_SHARING_VIOLATION)")]
+    SharingViolation,
+    #[error("Access denied (Windows ERROR_ACCESS_DENIED)")]
+    AccessDenied,
+    #[error("Lock contention during I/O operation")]
+    LockContention,
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("Engine context creation failed: {0}")]
+    CreationFailed(String),
+    #[error("Hardware compatibility check failed: {0}")]
+    HardwareMismatch(String),
+    #[error("Python error: {0}")]
+    PythonError(String),
+    #[error("Other error: {0}")]
+    Other(String),
+}
+
+impl From<PyErr> for Error {
+    fn from(err: PyErr) -> Self {
+        Error::PythonError(err.to_string())
+    }
+}
 
 // =========================================================================
 // 1. OPAQUE FFI TYPES
@@ -95,14 +144,17 @@ unsafe extern "C" {
         max_store: usize,
         version: *const i8,
     ) -> *mut fz_context;
+    fn fz_keep_context(ctx: *mut fz_context) -> *mut fz_context;
     fn fz_drop_context(ctx: *mut fz_context);
     fn fz_register_document_handlers(ctx: *mut fz_context);
     fn fz_open_document(ctx: *mut fz_context, filename: *const i8) -> *mut fz_document;
+    fn fz_keep_document(ctx: *mut fz_context, doc: *mut fz_document) -> *mut fz_document;
     fn fz_drop_document(ctx: *mut fz_context, doc: *mut fz_document);
     fn fz_count_pages(ctx: *mut fz_context, doc: *mut fz_document) -> i32;
 
     // Page & Pixmap API
     fn fz_load_page(ctx: *mut fz_context, doc: *mut fz_document, number: i32) -> *mut fz_page;
+    fn fz_keep_page(ctx: *mut fz_context, page: *mut fz_page) -> *mut fz_page;
     fn fz_drop_page(ctx: *mut fz_context, page: *mut fz_page);
     fn fz_new_pixmap_from_page(
         ctx: *mut fz_context,
@@ -119,28 +171,26 @@ unsafe extern "C" {
 // 3. SAFE WRAPPER FOR ELITE PAGE (Needed for Mission 008)
 // =========================================================================
 
-pub struct ElitePage<'a> {
+pub struct ElitePage {
     ctx: crate::EliteContext,
     inner: *mut fz_page,
-    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl ElitePage<'_> {
+impl ElitePage {
     pub fn from_document(doc: &EliteDocument, page_index: i32) -> Result<Self, String> {
-        let master = get_master_context();
-        let ctx = master.lock().unwrap();
+        let ctx = doc.ctx.clone(); // Mỗi page có context riêng đã được keep
+        let doc_ptr = doc.inner;
 
-        safe_ffi_call(|| {
+        safe_ffi_call(move || {
             unsafe {
-                let page = fz_load_page(ctx.as_ptr(), doc.inner, page_index);
+                let page = fz_load_page(ctx.as_ptr(), doc_ptr, page_index);
                 if page.is_null() {
                     return Err(PyRuntimeError::new_err("Failed to load page".to_string()));
                 }
 
                 Ok(Self {
-                    ctx: ctx.clone(), // Clone context for ownership
+                    ctx,
                     inner: page,
-                    _phantom: std::marker::PhantomData,
                 })
             }
         })
@@ -153,7 +203,7 @@ impl ElitePage<'_> {
     }
 }
 
-impl<'a> Drop for ElitePage<'a> {
+impl Drop for ElitePage {
     fn drop(&mut self) {
         if !self.inner.is_null() {
             unsafe {
@@ -167,18 +217,29 @@ impl<'a> Drop for ElitePage<'a> {
 // =========================================================================
 // 4. SAFE WRAPPERS
 // =========================================================================
+#[derive(Clone)]
 pub struct EliteContext {
-    inner: *mut fz_context,
+    inner: Arc<InnerContext>,
 }
 
-unsafe impl Send for EliteContext {}
-unsafe impl Sync for EliteContext {}
+struct InnerContext {
+    ptr: *mut fz_context,
+}
 
-impl Clone for EliteContext {
-    fn clone(&self) -> Self {
-        // Note: This is a shallow clone for thread safety
-        // The actual context is shared and managed by MASTER_CONTEXT
-        Self { inner: self.inner }
+impl InnerContext {
+    fn new(ptr: *mut fz_context) -> Self {
+        Self { ptr }
+    }
+}
+
+impl Drop for InnerContext {
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            unsafe {
+                fz_drop_context(self.ptr);
+            }
+            self.ptr = ptr::null_mut();
+        }
     }
 }
 
@@ -187,47 +248,106 @@ const FZ_STORE_DEFAULT: usize = 256 << 20;
 impl EliteContext {
     fn new_master() -> Option<Self> {
         let version = CString::new("1.27.0").unwrap();
+        
+        // Initialize Global Locks
+        GLOBAL_LOCKS.get_or_init(|| {
+             (0..FZ_LOCK_MAX).map(|_| std::sync::atomic::AtomicBool::new(false)).collect()
+        });
+        
+        let locks_ctx = LOCKS_CONTEXT.get_or_init(|| {
+            Box::new(fz_locks_context {
+                user: ptr::null_mut(),
+                lock: lock_callback,
+                unlock: unlock_callback,
+            })
+        });
+
         unsafe {
+            #[cfg(target_os = "windows")]
+            let max_store_size = {
+                let mut sys = sysinfo::System::new_all();
+                sys.refresh_memory();
+                let total_phys = sys.total_memory();
+                let quarter_phys_bytes = (total_phys / 4) as usize;
+                quarter_phys_bytes.min(FZ_STORE_DEFAULT)
+            };
+
+            #[cfg(not(target_os = "windows"))]
+            let max_store_size = FZ_STORE_DEFAULT;
+
+            let locks_ptr = &**locks_ctx as *const fz_locks_context as *const c_void;
+            
             let ptr =
-                fz_new_context_imp(ptr::null(), ptr::null(), FZ_STORE_DEFAULT, version.as_ptr());
+                fz_new_context_imp(ptr::null(), locks_ptr, max_store_size, version.as_ptr());
             if ptr.is_null() {
                 None
             } else {
                 fz_register_document_handlers(ptr);
-                Some(Self { inner: ptr })
+                Some(Self { inner: Arc::new(InnerContext::new(ptr)) })
             }
         }
     }
 
     pub fn as_ptr(&self) -> *mut fz_context {
-        self.inner
+        self.inner.ptr
     }
 }
 
-impl Drop for EliteContext {
-    fn drop(&mut self) {
-        if !self.inner.is_null() {
-            unsafe {
-                fz_drop_context(self.inner);
-            }
-            self.inner = ptr::null_mut();
+#[repr(C)]
+struct fz_locks_context {
+    user: *mut c_void,
+    lock: extern "C" fn(*mut c_void, i32),
+    unlock: extern "C" fn(*mut c_void, i32),
+}
+
+// 26 locks for MuPDF (FZ_LOCK_MAX typically)
+const FZ_LOCK_MAX: usize = 26;
+static GLOBAL_LOCKS: OnceLock<Vec<std::sync::atomic::AtomicBool>> = OnceLock::new();
+
+unsafe impl Send for fz_locks_context {}
+unsafe impl Sync for fz_locks_context {}
+
+extern "C" fn lock_callback(_user: *mut c_void, lock: i32) {
+    if lock >= 0 && (lock as usize) < FZ_LOCK_MAX {
+        let locks = GLOBAL_LOCKS.get().unwrap();
+        // standard mutex locking (blocking)
+        // Simple Spinlock using AtomicBool
+        use std::sync::atomic::Ordering;
+        let lock_atom = &locks[lock as usize];
+        while lock_atom.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
+            std::hint::spin_loop();
         }
     }
 }
 
-static MASTER_CONTEXT: OnceLock<Mutex<EliteContext>> = OnceLock::new();
+extern "C" fn unlock_callback(_user: *mut c_void, lock: i32) {
+    if lock >= 0 && (lock as usize) < FZ_LOCK_MAX {
+        let locks = GLOBAL_LOCKS.get().unwrap();
+        // Simple Spinlock using AtomicBool
+        use std::sync::atomic::Ordering;
+        let lock_atom = &locks[lock as usize];
+        lock_atom.store(false, Ordering::Release);
+    }
+}
 
-fn get_master_context() -> &'static Mutex<EliteContext> {
+static LOCKS_CONTEXT: OnceLock<Box<fz_locks_context>> = OnceLock::new();
+
+unsafe impl Send for EliteContext {}
+unsafe impl Sync for EliteContext {}
+
+static MASTER_CONTEXT: OnceLock<EliteContext> = OnceLock::new();
+
+fn get_master_context() -> &'static EliteContext {
     MASTER_CONTEXT.get_or_init(|| {
-        Mutex::new(EliteContext::new_master().expect("FATAL: MuPDF context initialization failed"))
+        EliteContext::new_master().expect("FATAL: MuPDF context initialization failed")
     })
 }
 
 fn safe_ffi_call<F, T>(func: F) -> PyResult<T>
 where
-    F: FnOnce() -> PyResult<T> + std::panic::UnwindSafe,
+    F: FnOnce() -> PyResult<T>,
 {
-    match panic::catch_unwind(AssertUnwindSafe(func)) {
+    match panic::catch_unwind(panic::AssertUnwindSafe(|| func())) {
         Ok(val) => val,
         Err(_) => Err(PyRuntimeError::new_err(
             "CRITICAL: Elite Core Panicked internally!",
@@ -241,11 +361,12 @@ where
 
 #[pyclass]
 pub struct EliteDocument {
+    pub ctx: EliteContext,
     inner: *mut fz_document,
     // Mission 012: System Optimization components
     cache: Option<Arc<CacheRegistry>>,
-    prefetcher: Option<Arc<IntentAwarePrefetcher>>,
-    backpressure_controller: Option<Arc<BackpressureController>>,
+    prefetcher: Option<Arc<prefetch_engine::IntentAwarePrefetcher>>,
+    backpressure_controller: Option<Arc<backpressure_controller::BackpressureController>>,
 }
 
 unsafe impl Send for EliteDocument {}
@@ -272,14 +393,13 @@ impl EliteDocument {
         }
 
         // 3. Open with MuPDF
-        let doc_ptr = safe_ffi_call({
+        let (ctx, doc_ptr) = safe_ffi_call({
             let filename_clone = filename.clone();
             move || {
                 let c_filename = CString::new(filename_clone)
                     .map_err(|e| PyValueError::new_err(format!("Invalid path: {}", e)))?;
 
-                let master = get_master_context();
-                let ctx = master.lock().unwrap();
+                let ctx = get_master_context().clone();
 
                 unsafe {
                     let doc_ptr = fz_open_document(ctx.as_ptr(), c_filename.as_ptr());
@@ -288,15 +408,15 @@ impl EliteDocument {
                             "Failed to open document with MuPDF",
                         ));
                     }
-                    Ok(doc_ptr)
+                    Ok((ctx, doc_ptr))
                 }
             }
         })?;
 
         // 4. Initialize Mission 012 components
         let cache = Arc::new(CacheRegistry::new());
-        let prefetcher = Arc::new(IntentAwarePrefetcher::new(cache.clone()));
-        let backpressure_controller = Arc::new(BackpressureController::new(
+        let prefetcher = Arc::new(prefetch_engine::IntentAwarePrefetcher::new(cache.clone()));
+        let backpressure_controller = Arc::new(backpressure_controller::BackpressureController::new(
             cache.clone(),
             prefetcher.clone(),
         ));
@@ -316,13 +436,12 @@ impl EliteDocument {
 
         // 5. Record to Ledger
         let page_count = unsafe {
-            let master = get_master_context();
-            let ctx = master.lock().unwrap();
             fz_count_pages(ctx.as_ptr(), doc_ptr)
         };
         let _ = ledger::record_ingestion(&filename, &hash, page_count, "SUCCESS");
 
         Ok(Self {
+            ctx,
             inner: doc_ptr,
             cache: Some(cache),
             prefetcher: Some(prefetcher),
@@ -331,10 +450,10 @@ impl EliteDocument {
     }
 
     pub fn count_pages(&self) -> PyResult<i32> {
-        safe_ffi_call(|| {
-            let master = get_master_context();
-            let ctx = master.lock().unwrap();
-            unsafe { Ok(fz_count_pages(ctx.as_ptr(), self.inner)) }
+        let ctx = self.ctx.clone();
+        let doc_ptr = self.inner;
+        safe_ffi_call(move || {
+            unsafe { Ok(fz_count_pages(ctx.as_ptr(), doc_ptr)) }
         })
     }
 
@@ -351,13 +470,31 @@ impl EliteDocument {
         }
 
         // Cache miss - extract normally
-        safe_ffi_call(|| {
-            let master = get_master_context();
-            let ctx = master.lock().unwrap();
+        let ctx = self.ctx.clone();
+        let doc_ptr = self.inner;
+        let cache_arc = self.cache.clone();
 
+        safe_ffi_call(move || {
             // Create ElitePage wrapper
-            let page = ElitePage::from_document(self, page_index)
-                .map_err(|e| PyRuntimeError::new_err(format!("Failed to load page: {}", e)))?;
+            // We need a document reference here. 
+            // BUT wait, ElitePage::from_document needs &EliteDocument.
+            // If we are inside safe_ffi_call(move || ...), we can't easily pass &self.
+            // Let's refactor ElitePage::from_document to take parts if needed, 
+            // or just use a temporary document-like structure.
+            
+            // Actually, we can just call ElitePage::from_parts(ctx, doc_ptr, page_index)
+            // or refactor from_document to be more flexible.
+            
+            let page = unsafe {
+                let page_ptr = fz_load_page(ctx.as_ptr(), doc_ptr, page_index);
+                if page_ptr.is_null() {
+                    return Err(PyRuntimeError::new_err(format!("Failed to load page {}", page_index)));
+                }
+                ElitePage {
+                    ctx: ctx.clone(),
+                    inner: page_ptr,
+                }
+            };
 
             // Extract Markdown
             let markdown = page.extract_markdown().map_err(|e| {
@@ -365,7 +502,7 @@ impl EliteDocument {
             })?;
 
             // Store in L1 Semantic Cache
-            if let Some(cache) = &self.cache {
+            if let Some(cache) = &cache_arc {
                 let block = SemanticBlock {
                     page_id,
                     content: markdown.clone(),
@@ -394,10 +531,30 @@ impl EliteDocument {
         page_index: i32,
         output_dir: String,
     ) -> PyResult<(String, String)> {
+        Self::internal_process_page_evidence(
+            self.ctx.clone(),
+            self.inner,
+            self.cache.clone(),
+            page_index,
+            output_dir,
+        )
+    }
+}
+
+// Separate impl block for internal helpers (NOT exposed to Python)
+impl EliteDocument {
+    // Helper function to avoid capturing &self in closures
+    fn internal_process_page_evidence(
+        ctx: EliteContext,
+        doc_ptr: *mut fz_document,
+        cache: Option<Arc<CacheRegistry>>,
+        page_index: i32,
+        output_dir: String,
+    ) -> PyResult<(String, String)> {
         let page_id = page_index as u32;
 
         // Check L2 Image Cache first
-        if let Some(cache) = &self.cache {
+        if let Some(cache) = &cache {
             if let Some(block) = cache.get_image(page_id) {
                 println!("[Cache L2] Image hit for page {}", page_id);
 
@@ -421,14 +578,19 @@ impl EliteDocument {
         }
 
         // Cache miss - render normally
+        // Wrappers for safe_ffi_call to ensure UnwindSafe
+        // removed manual AssertUnwindSafe as safe_ffi_call now handles it
+        // let ctx = AssertUnwindSafe(ctx);
+        // let cache = AssertUnwindSafe(cache);
+
         safe_ffi_call(move || {
-            let master = get_master_context();
-            let ctx_mutex = master.lock().unwrap();
-            let ctx = ctx_mutex.as_ptr();
+            // let ctx = ctx.0;
+            // doc_ptr is a raw pointer, straightforwardly Copy but check usage
+            // let cache = cache.0;
 
             unsafe {
-                // 1. Load Page
-                let page = fz_load_page(ctx, self.inner, page_index);
+                // 1. Load Page with local context
+                let page = fz_load_page(ctx.as_ptr(), doc_ptr, page_index);
                 if page.is_null() {
                     return Err(PyRuntimeError::new_err(format!(
                         "Failed to load page {}",
@@ -438,9 +600,9 @@ impl EliteDocument {
 
                 // 2. Render PNG (Scale 2.0x for 144 DPI quality)
                 let matrix = fz_matrix::scale(2.0);
-                let pix = fz_new_pixmap_from_page(ctx, page, matrix, ptr::null_mut(), 0);
+                let pix = fz_new_pixmap_from_page(ctx.as_ptr(), page, matrix, ptr::null_mut(), 0);
                 if pix.is_null() {
-                    fz_drop_page(ctx, page);
+                    fz_drop_page(ctx.as_ptr(), page);
                     return Err(PyRuntimeError::new_err("Failed to create pixmap from page"));
                 }
 
@@ -449,7 +611,7 @@ impl EliteDocument {
                 let png_path_str = png_path_buf.to_string_lossy().to_string();
                 let c_png_path = CString::new(png_path_str.clone()).unwrap();
 
-                fz_save_pixmap_as_png(ctx, pix, c_png_path.as_ptr());
+                fz_save_pixmap_as_png(ctx.as_ptr(), pix, c_png_path.as_ptr());
 
                 // Get file size for cache
                 let file_size = std::fs::metadata(&png_path_str)
@@ -458,12 +620,23 @@ impl EliteDocument {
                     })?
                     .len() as usize;
 
-                // Cleanup Pixmap & Page
-                fz_drop_pixmap(ctx, pix);
-                fz_drop_page(ctx, page);
+                // Cleanup Pixmap & Page within the same context
+                fz_drop_pixmap(ctx.as_ptr(), pix);
+                fz_drop_page(ctx.as_ptr(), page);
 
-                // Store in L2 Image Cache (need mutable access to self)
-                // Note: This requires rethinking the API design for mutable access
+                // Store in L2 Image Cache
+                if let Some(cache) = &cache {
+                     let block = ImageBlock {
+                        page_id,
+                        png_path: png_filename.clone(),
+                        file_size,
+                        last_accessed: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                        render_dpi: 144,
+                    };
+                    if let Err(e) = cache.put_image(block) {
+                         eprintln!("[Cache L2] Failed to store image block: {}", e);
+                    }
+                }
 
                 // 3. Extract Meta (JSON Placeholder for now)
                 let json_filename = format!("page_{}.json", page_index + 1);
@@ -557,7 +730,12 @@ impl EliteDocument {
     }
 
     /// Hàm mới: Xử lý Output tích hợp Cleanup
+    /// Hàm mới: Xử lý Output tích hợp Cleanup
     pub fn process_output(&self, original_path: String) -> PyResult<String> {
+        let ctx = self.ctx.clone();
+        let doc_ptr = self.inner;
+        let cache = self.cache.clone();
+
         safe_ffi_call(move || {
             // 1. Khởi tạo OutputManager và tạo thư mục session
             let manager = OutputManager::new("output");
@@ -565,9 +743,7 @@ impl EliteDocument {
                 .prepare_session_dir(&original_path)
                 .map_err(|e| PyRuntimeError::new_err(format!("IO Error: {}", e)))?;
 
-            let master = get_master_context();
-            let ctx = master.lock().unwrap();
-            let count = unsafe { fz_count_pages(ctx.as_ptr(), self.inner) };
+            let count = unsafe { fz_count_pages(ctx.as_ptr(), doc_ptr) };
 
             if count == 1 {
                 // Case 1: 1 Trang -> Copy file nguồn làm bằng chứng
@@ -576,14 +752,12 @@ impl EliteDocument {
                     .map_err(|e| PyRuntimeError::new_err(format!("Copy failed: {}", e)))?;
 
                 // Vẫn render page 1 để có PNG preview
-                drop(ctx); // Release lock before calling self method if needed, but here we can call internal ffi
-                self.process_page_evidence(0, out_dir.to_string_lossy().to_string())?;
+                Self::internal_process_page_evidence(ctx.clone(), doc_ptr, cache.clone(), 0, out_dir.to_string_lossy().to_string())?;
 
                 Ok(format!("Copied and rendered to: {}", out_dir.display()))
             } else {
                 // Case 2: > 1 Trang -> Tạo bằng chứng trang đầu và ghi nhận
-                drop(ctx);
-                self.process_page_evidence(0, out_dir.to_string_lossy().to_string())?;
+                Self::internal_process_page_evidence(ctx.clone(), doc_ptr, cache.clone(), 0, out_dir.to_string_lossy().to_string())?;
 
                 Ok(format!(
                     "Prepared multi-page session at: {} (Splitting pending)",
@@ -603,12 +777,13 @@ impl Drop for EliteDocument {
 
         // Clean up MuPDF document
         if !self.inner.is_null() {
-            let master = get_master_context();
-            if let Ok(ctx) = master.lock() {
-                unsafe {
-                    fz_drop_document(ctx.as_ptr(), self.inner);
-                }
+        // Clean up MuPDF document
+        if !self.inner.is_null() {
+            unsafe {
+                fz_drop_document(self.ctx.as_ptr(), self.inner);
             }
+            self.inner = ptr::null_mut();
+        }
             self.inner = ptr::null_mut();
         }
     }

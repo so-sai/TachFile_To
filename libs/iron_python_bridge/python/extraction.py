@@ -7,6 +7,10 @@ import json
 import hashlib
 from datetime import datetime
 import os
+import threading
+
+# Global lock for FFI-sensitive libraries in No-GIL mode
+FFI_LOCK = threading.Lock()
 
 # JSON structured logging for production-grade audit trails
 logger = structlog.get_logger()
@@ -80,13 +84,8 @@ def process_document(input_path: str, allow_mock: bool = True) -> str:
 
         if not use_mock and DOCLING_AVAILABLE:
             try:
-                # Configure Docling to use pypdfium2 if available/requested
-                pipeline_options = PdfPipelineOptions(
-                    do_ocr=False, # Disable OCR for speed in stress test unless needed
-                    do_table_structure=True,
-                    pdf_backend="pypdfium2" 
-                )
-                converter = DocumentConverter(format_options={"pdf": pipeline_options})
+                # Use default converter to avoid PdfPipelineOptions attribute issues in v2.68
+                converter = DocumentConverter()
                 
                 result = converter.convert(source_path)
                 
@@ -120,10 +119,12 @@ def process_document(input_path: str, allow_mock: bool = True) -> str:
 
                 doc_format = str(result.document.format) if hasattr(result.document, 'format') else doc_format
                 
-                
             except Exception as e:
                 logger.error("Docling processing failed/unavailable", error=str(e))
                 docling_error = e
+            finally:
+                if 'result' in locals(): del result
+                if 'converter' in locals(): del converter
 
         # --- FAST LANE: Direct Pypdfium2 (No-GIL, Lightweight) ---
         # If Docling failed or is missing, we fall back to direct pypdfium2
@@ -134,25 +135,28 @@ def process_document(input_path: str, allow_mock: bool = True) -> str:
                 import pypdfium2 as pdfium
                 
                 if ".pdf" in str(source_path).lower():
-                    pdf = pdfium.PdfDocument(str(source_path))
-                    full_text = []
-                    local_pages_meta = []
-                    
-                    for i, page_obj in enumerate(pdf, start=1):
-                        text_page = page_obj.get_textpage()
-                        page_text = text_page.get_text_range()
-                        full_text.append(page_text)
+                    # Synchronize pypdfium2 calls to avoid Access Violations in No-GIL
+                    with FFI_LOCK:
+                        pdf = pdfium.PdfDocument(str(source_path))
+                        full_text = []
+                        local_pages_meta = []
                         
-                        local_pages_meta.append(PageMetadata(
-                            page=i,
-                            content_type="text",
-                            confidence=1.0, # PDFium is deterministic
-                            text_length=len(page_text)
-                        ))
+                        for i, page_obj in enumerate(pdf, start=1):
+                            text_page = page_obj.get_textpage()
+                            page_text = text_page.get_text_range()
+                            full_text.append(page_text)
+                            
+                            local_pages_meta.append(PageMetadata(
+                                page=i,
+                                content_type="text",
+                                confidence=1.0, # PDFium is deterministic
+                                text_length=len(page_text)
+                            ))
+                        
+                        raw_content = "\n\n".join(full_text)
+                        pages_meta = local_pages_meta
+                        doc_format = "pdf_fast_lane"
                     
-                    raw_content = "\n\n".join(full_text)
-                    pages_meta = local_pages_meta
-                    doc_format = "pdf_fast_lane"
                     extraction_meta["engine"] = "pypdfium2_direct"
                     extraction_meta["fallback_reason"] = str(docling_error) if 'docling_error' in locals() else "docling_missing"
                     
@@ -177,6 +181,9 @@ def process_document(input_path: str, allow_mock: bool = True) -> str:
                     use_mock = True
                 else:
                     raise RuntimeError(f"Fast Lane extraction error: {e}") from e
+            finally:
+                if 'pdf' in locals(): del pdf
+                if 'page_obj' in locals(): del page_obj
 
         if use_mock:
             # MOCK MODE EXECUTION

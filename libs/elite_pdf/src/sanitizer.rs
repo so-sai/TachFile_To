@@ -37,7 +37,7 @@ impl SimdSanitizer {
     /// Check for x86 SIMD support at runtime
     #[cfg(target_arch = "x86_64")]
     #[inline]
-    fn is_x86_simd_supported() -> bool {
+    pub fn is_x86_simd_supported() -> bool {
         #[cfg(target_feature = "sse2")]
         {
             is_x86_feature_detected!("sse2")
@@ -108,28 +108,28 @@ impl SimdSanitizer {
             let mut output = Vec::with_capacity(input.len());
 
             // Control character mask (bytes < 32)
-            let control_mask = _mm_set1_epi8(0x1F);
+            let control_mask = unsafe { _mm_set1_epi8(0x1F) };
             // Space mask for comparison
-            let space_vec = _mm_set1_epi8(b' ' as i8);
+            let space_vec = unsafe { _mm_set1_epi8(b' ' as i8) };
 
             for chunk in chunks {
-                let data = _mm_loadu_si128(chunk.as_ptr() as *const __m128i);
+                let data = unsafe { _mm_loadu_si128(chunk.as_ptr() as *const __m128i) };
 
                 // Mask bytes < 32 (control chars)
-                let cmp_control = _mm_cmpgt_epi8(data, control_mask);
+                let cmp_control = unsafe { _mm_cmpgt_epi8(data, control_mask) };
 
                 // Find spaces
-                let cmp_space = _mm_cmpeq_epi8(data, space_vec);
+                let _cmp_space = unsafe { _mm_cmpeq_epi8(data, space_vec) };
 
                 // Valid mask = not control chars
                 let valid_mask = cmp_control;
 
                 // Extract bytes (scalar fallback for simplicity but still accelerated)
                 let mut temp = [0u8; LANES];
-                _mm_storeu_si128(temp.as_mut_ptr() as *mut __m128i, data);
+                unsafe { _mm_storeu_si128(temp.as_mut_ptr() as *mut __m128i, data) };
 
                 // Extract bytes using transmute to access private method
-                let mask_bytes = std::mem::transmute::<_, [u8; 16]>(valid_mask);
+                let mask_bytes = unsafe { std::mem::transmute::<_, [u8; 16]>(valid_mask) };
 
                 // Process each byte with SIMD-guided decisions
                 for (j, &byte) in temp.iter().enumerate() {

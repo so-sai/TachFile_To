@@ -3,9 +3,11 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import DashboardFounder from './components/DashboardFounder';
+import LedgerLog from './components/LedgerLog';
+import { useTelemetryStore } from './lib/telemetryStore';
 import './styles/Dashboard.css';
 
-type TabType = 'dashboard' | 'data';
+type TabType = 'dashboard' | 'ledger' | 'data';
 
 const ENTERPRISE_STYLES = `
   * { box-sizing: border-box; }
@@ -85,6 +87,19 @@ function App() {
     "> CHUẨN HÓA THUẬT NGỮ QS VIỆT NAM...",
     "> ĐANG TRÍCH XUẤT PHÁN QUYẾT TỪNG DÒNG...",
   ];
+
+  const telemetry = useTelemetryStore();
+
+  useEffect(() => {
+    let unlistenFn: (() => void) | undefined = undefined;
+    const initTelemetry = async () => {
+      unlistenFn = await telemetry.init();
+    };
+    initTelemetry();
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }, []);
 
   useEffect(() => {
     const setupDragDrop = async () => {
@@ -273,7 +288,13 @@ function App() {
               onClick={() => setActiveTab('dashboard')}
               className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
-              🚦 DASHBOARD
+              📊 DASHBOARD
+            </button>
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`tab-btn ${activeTab === 'ledger' ? 'active' : ''}`}
+            >
+              📜 NHẬT KÝ
             </button>
             <button
               onClick={() => setActiveTab('data')}
@@ -314,7 +335,9 @@ function App() {
       </header>
 
       {/* MAIN CONTENT AREA */}
-      {activeTab === 'dashboard' ? (
+      {activeTab === 'ledger' ? (
+        <LedgerLog />
+      ) : activeTab === 'dashboard' ? (
         // DASHBOARD TAB
         <div className="flex-1 overflow-auto bg-[#EEE]">
           {hasData && !isDocMode ? (
@@ -408,15 +431,36 @@ function App() {
       )}
 
       {/* --- FOOTER V2.5 --- */}
-      <footer className="h-[32px] bg-black text-white flex items-center justify-between px-6 text-[10px] font-black uppercase tracking-widest select-none z-10 border-t-2 border-white/20">
+      <footer className={`h-[32px] bg-black text-white flex items-center justify-between px-6 text-[10px] font-black uppercase tracking-widest select-none z-10 border-t-2 ${telemetry.isLimpMode ? 'border-yellow-400' : 'border-white/20'}`}>
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#00FF00]"></span>
-            <span>SYSTEM STANDBY</span>
+            <span className={`w-2 h-2 ${telemetry.isLive ? 'bg-[#00FF00]' : 'bg-red-500'} ${telemetry.isLive ? 'animate-pulse' : ''}`}></span>
+            <span>{telemetry.isLive ? `SYSTEM ONLINE [${telemetry.janitorStatus}]` : 'SYSTEM STANDBY'}</span>
           </div>
-          <div className="text-yellow-400">
-            ENGINE: POLARS 0.52 | CALAMINE 0.32
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400">CPU:</span>
+              <span className="text-white tabular-nums w-8">{telemetry.cpu.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400">RAM:</span>
+              <span className="text-white tabular-nums">{telemetry.ram}MB</span>
+            </div>
           </div>
+
+          {telemetry.isFFILocked && (
+            <div className="flex items-center gap-2 text-red-500 ffi-lock-active px-2 ml-4">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              <span>FFI COLLISION DETECTED - LOCK ENGAGED</span>
+            </div>
+          )}
+
+          {telemetry.isLimpMode && (
+            <div className="text-yellow-400 font-bold border border-yellow-400 px-2 leading-none py-0.5">
+              LIMP MODE (FALLBACK)
+            </div>
+          )}
         </div>
         <div>
           TACHFILE_TO VER 2.50 [IRON CORE]

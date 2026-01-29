@@ -5,8 +5,10 @@ edition = "2024"
 rust-version = "1.92"
 
 [dependencies]
-tauri = { version = "2.9", features = ["devtools"] }
+tauri = { version = "2.2", features = ["devtools"] }
+tauri-plugin-shell = "2.2"
 serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
 serde_json = "1.0"
 polars = { version = "0.52.0", features = [
     "lazy",
@@ -22,9 +24,14 @@ strsim = "0.11"
 lazy_static = "1.4"
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sysinfo = "0.31"
 tempfile = "3.0"
 iron_core = { path = "../../../iron_core" }
 iron_python_bridge = { path = "../../libs/iron_python_bridge" }
+dashmap = "6.1.0"
+crossbeam-channel = "0.5.15"
 
 [lib]
 name = "tachfileto_lib"

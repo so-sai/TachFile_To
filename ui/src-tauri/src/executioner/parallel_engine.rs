@@ -252,7 +252,7 @@ mod tests {
         for h in handles { h.join().unwrap(); }
         
         // Verify ledger integrity and count
-        let led = SqliteLedger::open(ledger_path).unwrap();
+        let mut led = SqliteLedger::open(ledger_path).unwrap();
         let pending = led.get_pending_warrants().unwrap();
         assert_eq!(pending.len(), 500);
         led.verify_integrity().unwrap();

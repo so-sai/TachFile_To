@@ -1,4 +1,4 @@
-use crate::cache_registry::{CacheRegistry, ImageBlock, SemanticBlock};
+use crate::cache_registry::CacheRegistry;
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -90,7 +90,7 @@ impl IntentAwarePrefetcher {
 
         // Calculate priority for pages around current position
         let current = intent.current_page;
-        let (viewport_start, viewport_end) = intent.viewport_range;
+        let (_viewport_start, _viewport_end) = intent.viewport_range;
 
         // Prefetch window: 10 pages behind, 20 pages ahead (adjustable)
         let prefetch_start = if current > 10 { current - 10 } else { 0 };
@@ -235,13 +235,18 @@ impl IntentAwarePrefetcher {
                 for request in requests {
                     // Check backpressure before fetching
                     match request.request_type {
-                        PrefetchType::Semantic | PrefetchType::Both => {
+                        PrefetchType::Semantic => {
                             if !cache.can_accept_semantic_work() {
                                 continue;
                             }
                         }
-                        PrefetchType::Image | PrefetchType::Both => {
+                        PrefetchType::Image => {
                             if !cache.can_accept_image_work() {
+                                continue;
+                            }
+                        }
+                        PrefetchType::Both => {
+                            if !cache.can_accept_semantic_work() || !cache.can_accept_image_work() {
                                 continue;
                             }
                         }

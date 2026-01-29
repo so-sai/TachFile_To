@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use crate::core_contract::ingestion_object::{IngestionObject, DocType}; // Import from Embassy
+use crate::telemetry_state;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValidationResult {
@@ -81,12 +82,24 @@ pub async fn extract_file(path: String) -> Result<serde_json::Value, String> {
     let _extractor = iron_python_bridge::unified_extractor::UnifiedExtractor::new(&ledger_db_path)
         .map_err(|e| format!("Failed to initialize extractor: {}", e))?;
     
+    // Set Telemetry Flags
+    telemetry_state::set_ffi_lock(true);
+    if std::env::var("ELITE_MOCK_MODE").unwrap_or_default() == "1" {
+        telemetry_state::set_limp_mode(true);
+    }
+
     // TODO: Phase 2 - implement actual extraction
     // For now, return mock result to unblock build
-    Ok(serde_json::to_value(serde_json::json!({
+    let result = serde_json::to_value(serde_json::json!({
         "status": "placeholder",
         "message": "Extractor initialization ready for Phase 2"
-    })).map_err(|e| e.to_string())?)
+    })).map_err(|e| e.to_string());
+
+    // Reset Telemetry Flags
+    telemetry_state::set_ffi_lock(false);
+    telemetry_state::set_limp_mode(false);
+
+    Ok(result?)
 }
 
 /// MOCK: Generate ingestion object with placeholder data using CORE CONTRACT
@@ -104,6 +117,22 @@ pub async fn generate_mock_ingestion(path: String) -> Result<IngestionObject, St
          checksum: "sha256:mock_checksum_123456".to_string(),
          origin_signature: "mock_signature_ed25519".to_string(),
      })
+}
+
+#[tauri::command]
+pub async fn get_ledger_entries(limit: usize) -> Result<Vec<iron_python_bridge::ledger_migration::LedgerEntry>, String> {
+    let ledger_db_path = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current dir: {}", e))?
+        .join("data")
+        .join("extraction_ledger.db");
+    
+    let ledger = iron_python_bridge::ledger_migration::LedgerManager::new(&ledger_db_path)
+        .map_err(|e| format!("Failed to initialize ledger: {}", e))?;
+    
+    let entries = ledger.get_all_entries(limit)
+        .map_err(|e| format!("Failed to fetch entries: {}", e))?;
+    
+    Ok(entries)
 }
 
 #[cfg(test)]

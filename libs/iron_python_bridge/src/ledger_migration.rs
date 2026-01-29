@@ -165,6 +165,49 @@ impl LedgerManager {
         }
     }
 
+    /// Get all entries (recent first)
+    pub fn get_all_entries(&self, limit: usize) -> AnyResult<Vec<LedgerEntry>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, source_path, checksum, pages_processed, extraction_engine, 
+                    extraction_version, processing_time_ms, status, error_message, 
+                    metadata_json, created_at 
+             FROM ingestion_ledger ORDER BY created_at DESC LIMIT ?",
+            )
+            .context("Failed to prepare get_all_entries query")?;
+
+        let entries = stmt.query_map([limit], |row| {
+            Ok(LedgerEntry {
+                id: row.get(0)?,
+                source_path: row.get(1)?,
+                checksum: row.get(2)?,
+                pages_processed: row.get(3)?,
+                extraction_engine: row.get(4)?,
+                extraction_version: row.get(5)?,
+                processing_time_ms: row.get(6)?,
+                status: row.get(7)?,
+                error_message: row.get(8)?,
+                metadata_json: row.get(9)?,
+                created_at: DateTime::parse_from_rfc3339(row.get::<_, String>(10)?.as_str())
+                    .unwrap_or_else(|_| {
+                        let utc_dt = DateTime::from_timestamp(0, 0).unwrap();
+                        DateTime::from_naive_utc_and_offset(
+                            utc_dt.naive_utc(),
+                            FixedOffset::east_opt(0).unwrap(),
+                        )
+                    })
+                    .into(),
+            })
+        })?;
+
+        let mut result = Vec::new();
+        for entry in entries {
+            result.push(entry?);
+        }
+        Ok(result)
+    }
+
     /// Get statistics
     pub fn get_stats(&self) -> AnyResult<LedgerStats> {
         let mut stmt = self
@@ -297,5 +340,41 @@ mod tests {
         // Should still be only one entry
         let stats = ledger.get_stats().unwrap();
         assert_eq!(stats.total_entries, 1);
+    }
+
+    #[test]
+    fn test_ledger_query_performance() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("perf_test_ledger.db");
+        let ledger = LedgerManager::new(&db_path).unwrap();
+
+        // Insertion Phase: 1000 rows
+        for i in 0..1000 {
+            let entry = LedgerEntry {
+                id: format!("perf-{}", i),
+                source_path: format!("/path/to/file_{}.pdf", i),
+                checksum: format!("sha256:{}", i),
+                pages_processed: i % 100,
+                extraction_engine: "docling".to_string(),
+                extraction_version: "2.68.0".to_string(),
+                processing_time_ms: 100,
+                status: "success".to_string(),
+                error_message: None,
+                metadata_json: "{}".to_string(),
+                created_at: Utc::now().into(),
+            };
+            ledger.migrate_to_ledger(entry).unwrap();
+        }
+
+        // Query Phase: Recent 100 entries
+        let start = std::time::Instant::now();
+        let entries = ledger.get_all_entries(100).unwrap();
+        let duration = start.elapsed();
+
+        assert_eq!(entries.len(), 100);
+        println!("⏱️ Ledger Query Latency (1000 rows): {:?}", duration);
+        
+        // Elite Requirement: Must be under 50ms for local SQLite
+        assert!(duration.as_millis() < 50, "Query latency exceeded elite limit!");
     }
 }

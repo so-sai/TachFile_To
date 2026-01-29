@@ -9,13 +9,16 @@
 
 ---
 
-## **1. TRIẾT LÝ CỐT LÕI** - *"Content First, UI Last"*
-Ứng dụng phục vụ công việc nghiêm túc cần sự rõ ràng khắc nghiệt:
+## **1. TRIẾT LÝ CỐT LÕI** - *"UI Never Thinks"*
 
-- **ƯU TIÊN NỘI DUNG**: Giao diện khiêm tốn phục vụ dữ liệu, không cạnh tranh với nó
-- **RÕ RÀNG TỨC THÌ**: Văn bản đọc được ngay, hệ thống phân cấp hiển nhiên
-- **ĐỘ SÂU TỐI GIẢN**: Chỉ dùng đường viền và đổ bóng nhẹ để phân tầng
-- **KHÔNG GÂY XAO NHÃNG**: Không gradient, không trong suốt, không bo góc nặng ở khu vực dữ liệu
+Giao diện chỉ là lớp kính hiển thị sự thật từ Core.
+
+- **UI NEVER THINKS**: Frontend không chứa logic nghiệp vụ. Chỉ hiển thị kết quả từ Rust.
+- **FOUNDER / ENGINEER FIRST**: Ưu tiên mật độ dữ liệu và khả năng drill-down (truy xuất nguồn gốc) hơn là vẻ đẹp hình thức.
+- **ƯU TIÊN NỘI DUNG**: Giao diện khiêm tốn phục vụ dữ liệu, không cạnh tranh với nó.
+- **RÕ RÀNG TỨC THÌ**: Văn bản đọc được ngay, hệ thống phân cấp hiển nhiên.
+- **ĐỘ SÂU TỐI GIẢN**: Chỉ dùng đường viền và đổ bóng nhẹ để phân tầng.
+- **KHÔNG GÂY XAO NHÃNG**: Không gradient, không trong suốt, không bo góc nặng ở khu vực dữ liệu.
 
 ---
 

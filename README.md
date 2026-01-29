@@ -1,72 +1,124 @@
-# 📑 TachFileTo-VN 
-**Deterministic Validation Engine for Vietnamese Construction Projects**
+# TachFileTo
 
-A tool that extracts truth from chaos — not opinions.
+**Engine Kiểm Tra Dữ Liệu Hồ Sơ Xây Dựng Việt Nam (Deterministic File Validation Engine)**
 
-> **🏛️ MDS Reference:** [MDS-ELITE9VN-2026-v1.1](../GOVERNANCE/MDS.md)  
-> **📍 Ecosystem Role:** `OPTIONAL` – Heavy Ingestion Tool  
-> **⚠️ Classification:** Không tham gia critical payment path (LAW-12)
-> **📖 Root Docs:** [README](../README.md)
+*Công cụ trích xuất sự thật từ sự hỗn loạn dữ liệu — không phán đoán, không phê duyệt.*
 
-## 🎯 Mục Đích Cốt Lõi (The Core Purpose)
-TachFileTo là hệ thống tự động hóa việc **kiểm tra khối lượng** trong xây dựng. Nó giải quyết một vấn đề cụ thể:
+---
 
-> **"Làm sao để nhanh chóng đối chiếu bảng khối lượng từ file PDF/Excel với thực tế, trước khi thanh toán?"**
+### 🚀 Vì sao TachFileTo tồn tại
 
-## 🧩 Vấn Đề Nó Giải Quyết (Cụ Thể)
-**1. Xử lý Dữ Liệu Thô Từ Hiện Trường**
-*   **OCR & Trích xuất bảng từ PDF:** Tự động đọc file scan (kể cả file lớn >50MB), bản vẽ, hồ sơ chất lượng có bảng biểu.
-*   **Xử lý đa dạng định dạng:** Đọc file Excel hiện có, chuẩn hóa về một cấu trúc duy nhất.
-*   **Sửa lỗi font chữ Việt Nam:** Tự động phát hiện và chuyển đổi font TCVN3, VNI về Unicode.
+TachFileTo sinh ra từ thực tế rằng các phần mềm hiện có thường sụp đổ khi xử lý hồ sơ xây dựng lớn, nặng, nhiều file scan và tồn tại lâu dài. Chúng chậm, mù dữ liệu, chuyển đổi không bền, sinh file rác và không có trí nhớ hệ thống giữa các lần xử lý. 
 
-**2. Kiểm Tra Tính Hợp Lý & Cảnh Báo Rủi Ro**
-*   **Phát hiện sai lệch:** So sánh khối lượng giữa các giai đoạn, phát hiện chênh lệch bất thường.
-*   **Áp dụng quy tắc nghiệp vụ Việt Nam:** Tính toán lại theo đơn giá, định mức, kiểm tra làm tròn số.
-*   **Gắn bằng chứng trực quan:** Liên kết từng dòng dữ liệu với hình ảnh "evidence" được crop chính xác từ bản vẽ gốc.
+TachFileTo được tạo ra để giải quyết **hạ tầng xử lý dữ liệu**, không phải để phán đoán nghiệp vụ.
 
-**3. Trình Bày Cho Người Ra Quyết Định**
-*   **Giao diện Founder-first:** Từ bảng dữ liệu chi tiết (QS) tổng hợp thành tín hiệu rõ ràng: **An toàn / Cảnh báo / Nguy cơ**.
-*   **Truy xuất nguồn gốc trong 1 cú click:** Từ tín hiệu cảnh báo có thể drill-down ngay xuống dòng dữ liệu gốc và hình ảnh bằng chứng.
+---
 
-## 🧠 Nguyên Tắc Thiết Kế Sắt Đá (Iron Core)
-1.  **Xác Định Trên Thông Minh (Determinism over Intelligence):** Cùng một đầu vào → luôn cho cùng một kết quả. Không có AI "phán đoán mù".
-2.  **Giao Diện Không Tính Toán (UI Never Thinks):** Mọi logic nghiệp vụ nằm trong [`iron_coreVN`](../iron_core/README.md). Frontend chỉ hiển thị.
-3.  **Ưu Tiên Hiệu Năng (Performance is a Feature):** Xử lý file lớn (>50MB) là chuyện bình thường. Không có spinner giả dối.
-4.  **Tôn Trọng Thực Tế Việt Nam (Vietnamese Reality First):** Thuật ngữ, cách tính toán, quy chuẩn xây dựng Việt Nam là ưu tiên hàng đầu.
+## 🎯 Mục Đích Cốt Lõi
+
+TachFileTo là một **engine xử lý & kiểm tra dữ liệu hồ sơ xây dựng** ở mức **kỹ thuật thuần túy**.
+
+Nó trả lời **một câu hỏi duy nhất**:
+
+> *“Dữ liệu trong các file PDF / Excel này thực sự nói gì, và có nhất quán với nhau hay không?”*
+
+TachFileTo **không ra quyết định**, **không phê duyệt**, **không thay thế con người**.
+
+---
+
+## 🧩 Phạm Vi Vấn Đề Giải Quyết
+
+### 1. Xử lý dữ liệu thô từ hồ sơ hiện trường
+
+* Trích xuất bảng từ PDF (kể cả file scan, file lớn >50MB).
+* Đọc & chuẩn hóa Excel về **một cấu trúc dữ liệu thống nhất**.
+* Tự động phát hiện và chuyển đổi font tiếng Việt (TCVN3, VNI → Unicode).
+* Chuẩn hóa tiêu đề, cột, đơn vị theo ngữ cảnh hồ sơ xây dựng Việt Nam.
+
+👉 **Đầu ra:** dữ liệu sạch, có cấu trúc, có thể kiểm chứng.
+
+---
+
+### 2. Kiểm tra tính nhất quán & phát hiện sai lệch dữ liệu
+
+* So sánh khối lượng giữa các file / giai đoạn.
+* Phát hiện chênh lệch bất thường, thiếu dòng, trùng dòng, sai làm tròn.
+* Áp dụng **quy tắc tính toán xác định (deterministic rules)** — không suy đoán.
+* Gắn bằng chứng trực quan: mỗi dòng dữ liệu có thể truy ngược về **ảnh crop chính xác từ tài liệu gốc**.
+
+👉 **Đầu ra:** danh sách *facts & discrepancies*, không phải kết luận nghiệp vụ.
+
+---
+
+### 3. Trình bày dữ liệu cho người chịu trách nhiệm
+
+* Giao diện **Ưu tiên Người điều hành (Founder/Engineer-first)**: ưu tiên quan sát sự thật, không diễn giải.
+* Từ bảng dữ liệu chi tiết → tín hiệu kỹ thuật:
+  **Khớp (Consistent) / Sai lệch (Inconsistent) / Cần kiểm tra (Requires Review)**
+* Truy xuất 1-click: từ dữ liệu → file gốc → hình ảnh bằng chứng.
+
+👉 **Giao diện chỉ hiển thị — không “suy nghĩ” thay người dùng.**
+
+---
+
+## 🧠 Nguyên Tắc Thiết Kế (Iron Core)
+
+* **Xác định trên Thông minh (Determinism over Intelligence)**
+  Cùng đầu vào → luôn cùng đầu ra. Không AI phán đoán mơ hồ.
+
+* **Giao diện không tính toán (UI Never Thinks)**
+  Mọi logic nằm trong Core (Rust). Frontend không chứa nghiệp vụ.
+
+* **Hiệu năng là tính năng (Performance is a Feature)**
+  File lớn, nhiều trang, nhiều bảng là trạng thái bình thường. Không spinner giả dối.
+
+* **Thực tế Việt Nam là số 1 (Vietnamese Reality First)**
+  Thuật ngữ, cách trình bày, đặc thù hồ sơ Việt Nam là ưu tiên — *nhưng không thay thế chuẩn mực kỹ thuật*.
+
+---
 
 ## 🏗️ Nguyên Tắc Kiến Trúc
-*   **Core Deterministic:** Logic duy nhất được viết bằng Rust, đảm bảo tính xác định.
-*   **Desktop-First, Offline-First:** Ứng dụng chạy độc lập trên Windows, ưu tiên tốc độ và quyền riêng tư.
-*   **Contracts Rõ Ràng:** Giao tiếp giữa các module thông qua các data contract được định nghĩa chặt chẽ.
+
+* **Core Deterministic (Rust)**
+  Một nguồn sự thật duy nhất cho logic xử lý.
+
+* **Desktop-first, Offline-first**
+  Chạy độc lập trên Windows. Ưu tiên tốc độ và quyền riêng tư.
+
+* **Hợp đồng dữ liệu chặt chẽ (Strict Data Contracts)**
+  Mọi module giao tiếp qua contract rõ ràng, có phiên bản.
+
+---
 
 ## 📖 Bản Đồ Tài Liệu
 
-### 📂 Cấu trúc dự án (IIP v1.1)
-- **Triết lý cốt lõi:** `.project-context/ANTI_GRAVITY.md` - Constitutional principles
-- **Quy tắc Agent:** `.project-context/AGENT_RULES.md` - AI agent guidelines
-- **Quản lý Mission:** `.project-context/MISSION_CONTROL.json` - State tracking
-- **Nhiệm vụ hiện tại:** `.project-context/ACTIVE_MISSION.md` - Current work
-- **Bài học kinh nghiệm:** `LESSONS.md` - Anti-patterns và lỗi đã sửa
+### 📂 Cấu trúc dự án (IIP v1.0)
 
-### 📋 Specifications & Guides
-- **Hướng dẫn tổng quan:** `docs/GUIDE.md` - Single source of truth
-- **Trạng thái hệ thống:** `docs/specs/MASTER_V3.0_DASHBOARD.md`
-- **Quy tắc nghiệp vụ:** `docs/specs/RULE_PACK_NHA_NUOC_V1.1.md`
-- **Giao thức IPC:** `docs/specs/IPC_PROTOCOL.md`
-- **Hệ thống thiết kế UI:** `docs/specs/UI_DESIGN_SYSTEM.md`
-- **Hợp đồng dữ liệu:** `docs/specs/TRUTH_CONTRACT_V1.md`
-- **Ranh giới hệ sinh thái:** `docs/BOUNDARY_MANIFEST.md`
-- **Lịch sử thay đổi:** `docs/CHANGELOG.md`
+* Hiến pháp dự án: `.project-context/PROJECT_PROMPT.md`
+* Quy tắc AI: `.project-context/AGENT_RULES.md`
+* Nhiệm vụ hiện tại: `.project-context/ACTIVE_MISSION.md`
+* Bài học kinh nghiệm: `LESSONS.md`
+* Tài liệu lưu trữ: `.project-context/ARCHIVE/`
 
-### 🗃️ Lưu trữ
-- **Tài liệu cũ:** `.project-context/ARCHIVE/` - Legacy specs và reports
+### 📋 Thông số & Hướng dẫn (Specifications)
+
+* Trạng thái hệ thống: `docs/specs/MASTER_V3.0_DASHBOARD.md`
+* Quy tắc kiểm tra dữ liệu: `docs/specs/RULE_PACK_CORE_V1.0.md`
+* Giao thức IPC: `docs/specs/IPC_PROTOCOL.md`
+* Hợp đồng dữ liệu: `docs/specs/TRUTH_CONTRACT_V1.md`
+* Hệ thống thiết kế UI: `docs/specs/UI_DESIGN_SYSTEM.md`
+* Hướng dẫn sử dụng: `docs/GUIDE.md`
+* Lịch sử thay đổi: `docs/CHANGELOG.md`
 
 ---
 
-## ⚠️ Giới Hạn Trách Nhiệm
+## ⚠️ Giới Hạn Trách Nhiệm (Boundary)
 
-TachFileTo **không thay thế kỹ sư**, không tự động phê duyệt thanh toán — nó chỉ phơi bày sự thật để con người chịu trách nhiệm.
+TachFileTo:
 
----
+* ❌ Không phê duyệt thanh toán
+* ❌ Không đưa ra kết luận pháp lý hay nghiệp vụ
+* ❌ Không thay thế kỹ sư, QS, hay chủ đầu tư
 
-> **Triết lý cuối cùng:** "Bảng dashboard không phải để ngắm. Nó tồn tại để ra quyết định. Nếu TachFileTo chuyển màu đỏ, ai đó phải dừng lại và hành động."
+✅ Nó **chỉ làm một việc**:
+**Phơi bày dữ liệu và sự nhất quán của chúng một cách chính xác và có thể kiểm chứng.**
