@@ -149,7 +149,11 @@ impl ProjectTruth {
                      CellValue::Int(i) => sum += i as f64,
                      CellValue::Float(f) => sum += f,
                      CellValue::Null => {}, // Treat null as 0
-                     _ => return Err(ProjectRejection::TypeMismatch(format!("Column contains non-numeric data at row {}", row.row_idx))),
+                     _ => {
+                         // Skip header row gracefully if it contains text
+                         if row.row_idx == 0 { continue; }
+                         return Err(ProjectRejection::TypeMismatch(format!("Column contains non-numeric data at row {}", row.row_idx)));
+                     }
                  }
              }
         }

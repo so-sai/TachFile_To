@@ -99,9 +99,11 @@ fn test_024_04_confidence_guard() {
     let validation = tables[0].validate_contract();
     
     match validation {
-        Err(TableRejection::LowConfidence(msg)) => {
-            assert!(msg.contains("0.5") || msg.contains("low confidence"), 
-                "Error message should mention low confidence: {}", msg);
+        Err(TableRejection::LowConfidence(_)) => {
+            // Use DiagnosticEngine for "Observability" test
+            let violations = iron_adapter::DiagnosticEngine::diagnose(&tables[0]);
+            let found = violations.iter().any(|v| matches!(v, iron_adapter::StructuredRejection::LowConfidence { confidence, .. } if (*confidence - 0.5).abs() < 0.01));
+            assert!(found, "DiagnosticEngine should pinpoint the 0.5 confidence violation");
         }
         Err(e) => panic!("Expected LowConfidence, got: {:?}", e),
         Ok(_) => panic!("Low confidence cell should trigger rejection"),
@@ -135,7 +137,12 @@ fn test_024_05_mojibake_handshake() {
     // Validation should fail due to encoding corruption
     let validation = table.validate_contract();
     match validation {
-        Err(TableRejection::EncodingCorruption(_)) => {} // Expected
+        Err(TableRejection::EncodingCorruption(_)) => {
+             // Verify structural metadata via Diagnostics
+             let violations = iron_adapter::DiagnosticEngine::diagnose(table);
+             let found = violations.iter().any(|v| matches!(v, iron_adapter::StructuredRejection::EncodingCorruption { row, .. } if *row == 1));
+             assert!(found, "Diagnostics should find corruption at row 1");
+        }
         Err(e) => panic!("Expected EncodingCorruption, got: {:?}", e),
         Ok(_) => panic!("Mojibake table should have been rejected!"),
     }

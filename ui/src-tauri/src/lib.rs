@@ -18,6 +18,24 @@ mod telemetry;
 mod telemetry_state;
 
 use excel_engine::ExcelAppState;
+use iron_table::contract::TableTruth;
+use iron_adapter::diagnostics::StructuredRejection;
+use std::sync::Mutex;
+
+pub struct ForensicState {
+    pub active_table: Mutex<Option<TableTruth>>,
+    pub active_violations: Mutex<Vec<StructuredRejection>>,
+}
+
+impl Default for ForensicState {
+    fn default() -> Self {
+        Self {
+            active_table: Mutex::new(None),
+            active_violations: Mutex::new(None.unwrap_or_default()),
+        }
+    }
+}
+
 use commands::validate_file;
 use tauri::Manager;
 
@@ -26,6 +44,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(ExcelAppState::default())
+        .manage(ForensicState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -43,7 +62,14 @@ pub fn run() {
             validate_file::validate_file,
             validate_file::extract_file,
             validate_file::get_ledger_entries,
-            validate_file::generate_mock_ingestion
+            validate_file::generate_mock_ingestion,
+            commands::repair::get_structural_diagnostics,
+            commands::repair::apply_table_repairs,
+            commands::repair::seal_table_truth,
+            commands::ui_bridge::get_file_ledger,
+            commands::ui_bridge::get_table_truth,
+            commands::ui_bridge::get_evidence,
+            commands::ui_bridge::get_discrepancy
         ])
         .run(tauri::generate_context!())
         .expect("Lỗi khi chạy Tauri application");

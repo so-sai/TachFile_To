@@ -126,10 +126,19 @@ impl DoclingBridge {
                         // Scan for encoding
                         let (enc_status, enc_evidence) = EncodingGatekeeper::scan(&dc.content.text);
                         
+                        // Numeric detection heuristic
+                        let value = if let Ok(i) = dc.content.text.parse::<i64>() {
+                            CellValue::Int(i)
+                        } else if let Ok(f) = dc.content.text.replace(',', "").parse::<f64>() {
+                            CellValue::Float(f)
+                        } else {
+                            CellValue::Text(dc.content.text.clone())
+                        };
+
                         let cell = TableCell {
                             row_idx: dc.row_index,
                             col_idx: dc.col_index,
-                            value: CellValue::Text(dc.content.text.clone()),
+                            value,
                             bbox: BoundingBox {
                                 x: dc.bbox[0] as f32,
                                 y: dc.bbox[1] as f32,

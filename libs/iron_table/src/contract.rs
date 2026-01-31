@@ -137,6 +137,17 @@ pub enum TableRejection {
     LowConfidence(String),
 }
 
+/// Reasons for rejecting a specific data point or structure.
+/// Aligned with TACHFILETO UI SPECIFICATION v1.0
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum RejectionReason {
+    EncodingCorruption,
+    AmbiguousUnit,
+    StructuralGhost,
+    NumericOverflow,
+    InvalidFormat,
+}
+
 impl TableTruth {
     pub fn validate_contract(&self) -> Result<(), TableRejection> {
         // 3.4 Rejection Rules
@@ -171,7 +182,7 @@ impl TableTruth {
                        return Err(TableRejection::LowConfidence(format!("Row {}, Col {} has low confidence {}", cell.row_idx, cell.col_idx, cell.confidence)));
                   }
 
-                  // B. Encoding Enforcement (Mission 022)
+                  // B. Encoding Enforcement (Mission 021/022)
                   match cell.encoding_status {
                       EncodingStatus::Invalid => {
                           return Err(TableRejection::EncodingCorruption(format!(

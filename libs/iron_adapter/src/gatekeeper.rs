@@ -3,17 +3,14 @@ use iron_table::contract::EncodingStatus;
 pub struct EncodingGatekeeper;
 
 const MOJIBAKE_SCARS: &[&str] = &[
-    "├¬", // ê
-    "├┤", // ô
-    "├│", // ó
-    "├á", // à
-    "├║", // ú
-    "├║", // ù (sometimes ambiguous)
-    "├¡", // í
-    "├®", // é
-    "├â", // Â
-    "├ä", // Ä
-    "├ë", // Ë
+    "\u{251C}\u{00AC}", // ├¬ (ê)
+    "\u{251C}\u{2524}", // ├┤ (ô)
+    "\u{251C}\u{2502}", // ├│ (ó)
+    "\u{251C}\u{00E1}", // ├á (à)
+    "\u{251C}\u{2551}", // ├║ (ú)
+    "\u{251C}\u{00ED}", // ├¡ (í)
+    "\u{251C}\u{00AE}", // ├® (é)
+    "\u{251C}\u{00C2}", // ├Â (Â)
 ];
 
 impl EncodingGatekeeper {
@@ -59,6 +56,11 @@ impl EncodingGatekeeper {
         } else {
             (EncodingStatus::Clean, None)
         }
+    }
+
+    /// Convenience helper for quick checks.
+    pub fn is_mojibake(input: &str) -> bool {
+        matches!(Self::scan(input).0, EncodingStatus::Invalid)
     }
 }
 

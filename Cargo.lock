@@ -2361,6 +2361,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
 ]
 
@@ -5602,8 +5603,10 @@ dependencies = [
  "crossbeam-channel",
  "dashmap",
  "deunicode",
+ "iron_adapter",
  "iron_core",
  "iron_python_bridge",
+ "iron_table",
  "lazy_static",
  "polars",
  "rusqlite",

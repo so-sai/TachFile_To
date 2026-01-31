@@ -101,6 +101,21 @@ pub struct fz_matrix {
     pub f: f32,
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct fz_rect {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+}
+
+impl fz_rect {
+    pub fn from_coords(x0: f32, y0: f32, x1: f32, y1: f32) -> Self {
+        Self { x0, y0, x1, y1 }
+    }
+}
+
 impl fz_matrix {
     pub fn identity() -> Self {
         Self {
@@ -163,6 +178,13 @@ unsafe extern "C" {
         cs: *mut fz_colorspace,
         alpha: i32,
     ) -> *mut fz_pixmap;
+    fn fz_new_pixmap_from_page_contents(
+        ctx: *mut fz_context,
+        page: *mut fz_page,
+        ctm: fz_matrix,
+        cs: *mut fz_colorspace,
+        alpha: i32,
+    ) -> *mut fz_pixmap;
     fn fz_drop_pixmap(ctx: *mut fz_context, pix: *mut fz_pixmap);
     fn fz_save_pixmap_as_png(ctx: *mut fz_context, pix: *mut fz_pixmap, filename: *const i8);
 }
@@ -200,6 +222,44 @@ impl ElitePage {
     pub fn extract_markdown(&self) -> Result<String, String> {
         let text_page = mupdf_text::EliteTextPage::from_page(self)?;
         text_page.to_markdown()
+    }
+
+    pub fn get_crop_base64(&self, x0: f32, y0: f32, x1: f32, y1: f32, zoom: f32) -> Result<String, String> {
+        use base64::{Engine as _, engine::general_purpose};
+        let ctx = self.ctx.clone();
+        let page_ptr = self.inner;
+
+        // Implementation Note: MuPDF fz_new_pixmap_from_page renders the VISIBLE area.
+        // We use the matrix to translate and scale.
+        let matrix = fz_matrix {
+            a: zoom,
+            b: 0.0,
+            c: 0.0,
+            d: zoom,
+            e: -x0 * zoom,
+            f: -y0 * zoom,
+        };
+
+        unsafe {
+            let pix = fz_new_pixmap_from_page(ctx.as_ptr(), page_ptr, matrix, ptr::null_mut(), 0);
+            if pix.is_null() {
+                return Err("Failed to create pixmap for crop".to_string());
+            }
+
+            // Save to temp file and read back (fastest for now since we don't have buffer FFI)
+            let temp_dir = std::env::temp_dir();
+            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+            let temp_path = temp_dir.join(format!("crop_{}.png", timestamp));
+            let c_temp_path = CString::new(temp_path.to_string_lossy().to_string()).unwrap();
+
+            fz_save_pixmap_as_png(ctx.as_ptr(), pix, c_temp_path.as_ptr());
+            fz_drop_pixmap(ctx.as_ptr(), pix);
+
+            let bytes = std::fs::read(&temp_path).map_err(|e| format!("IO error: {}", e))?;
+            let _ = std::fs::remove_file(&temp_path);
+
+            Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
+        }
     }
 }
 
