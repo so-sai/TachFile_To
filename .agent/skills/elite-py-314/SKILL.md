@@ -40,3 +40,8 @@ description: Python Engineering Doctrine (Python ≥ 3.14, Nogil-Ready, Correctn
 ## VIII. Observability
 - **Logging**: Structured logging with contextual metadata.
 - **Tracing**: Tracing hooks for critical flows.
+## IX. Data Purity Protocol (The Janitor's Decree)
+- **Encoding Boundary**: All text data sent to Rust via IPC MUST be strictly UTF-8. 
+- **No Mojibake**: Workers are responsible for detecting and discarding malformed characters before serialization.
+- **Pure Extraction**: Python Workers focus on RAW extraction. No cleaning or normalization of numbers should happen here; that is the Janitor's role in Rust.
+- **IPC Contract**: Match the `camelCase` protocol and avoid non-UTF-8 compatible byte streams in JSON payloads.

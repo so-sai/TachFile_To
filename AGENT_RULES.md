@@ -20,6 +20,12 @@ These rules apply globally across all workspaces and projects for this user.
 
 - All documents created for this user MUST adhere to the **doc-legal-artifact**, **doc-operational-artifact**, or **doc-marketing-artifact** standards based on their purpose.
 
-## 🧹 Resource Hygiene (CLEAN_OR_DIE)
+## 🧼 Resource Hygiene (CLEAN_OR_DIE)
 
 > **"CẤM tuyệt đối việc tạo file .txt hay .log ở bất kỳ thư mục nào ngoài `/logs` hoặc `/temp`. Mọi file debug phát sinh phải bị xóa ngay sau khi mission kết thúc."**
+
+## 🏁 Data Purity Protocol (The Janitor's Decree)
+
+1. **Stateless & Pure**: Logic layers like `Janitor` must be pure transformers. No state, no semantic inference.
+2. **Encoding First**: Every I/O boundary MUST enforce UTF-8 integrity. Mojibake is a critical failure.
+3. **Audit Trail**: Transformations must be logged (`JanitorReport`), but reports are non-authoritative for business logic.

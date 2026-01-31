@@ -100,3 +100,14 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
   3. Propose refactor plan **before applying major logic changes**.
   4. Refactor module-by-module under `src/`.
   5. Update call sites, tests, examples, and documentation.
+## Data Purity Protocol (The Janitor's Decree)
+
+- **Architectural Separation**: Data cleaning (Janitor) is STRICTLY separated from data validation (TableTruth). 
+- **Stateless & Pure**: The Janitor layer must be a pure transformer. It does not hold state or infer business logic.
+- **Reporting Hierarchy**: `JanitorReport` is non-authoritative. It is an audit trail for the Dashboard, but MUST NEVER be used by the `Truth` layer to determine validity.
+- **I/O Boundary Enforcement (Encoding)**: All external text (e.g., from PythonWorkers) must pass through an `EncodingGatekeeper` for UTF-8 and Mojibake validation *before* reaching the Janitor.
+- **Ghost Rules**: 
+    - Ejection of "Ghost Columns" is preferred for structural hallucinations.
+    - Row ejection is only allowed for 100% empty rows with no semantic significance (e.g., header rows, spacer rows).
+- **SIMD Usage**: Prefer standard library optimizations (Regex, Arrow) for SIMD. Avoid manual intrinsics unless explicitly authorized for a specific Mission.
+- **Syntactic Cleaning Only**: Janitor cleans characters and formats (1.250,50 -> 1250.5). It NEVER performs semantic conversion (m3 -> liters). Parse failures are left "as-is" to be rejected by Truth.
