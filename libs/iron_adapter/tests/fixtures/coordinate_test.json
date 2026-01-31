@@ -1,0 +1,78 @@
+{
+    "pages": [
+        {
+            "page_no": 1,
+            "size": {
+                "width": 595.0,
+                "height": 842.0
+            },
+            "tables": [
+                {
+                    "self_ref": "#/tables/0",
+                    "cells": [
+                        {
+                            "row_index": 0,
+                            "col_index": 0,
+                            "content": {
+                                "text": "Header A",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                10.5,
+                                20.75,
+                                50.25,
+                                30.125
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 0,
+                            "col_index": 1,
+                            "content": {
+                                "text": "Header B",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                60.875,
+                                20.75,
+                                100.5,
+                                30.125
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 1,
+                            "col_index": 0,
+                            "content": {
+                                "text": "Cell_1_0",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                10.5,
+                                40.25,
+                                50.25,
+                                50.375
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 1,
+                            "col_index": 1,
+                            "content": {
+                                "text": "Cell_1_1",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                60.875,
+                                40.25,
+                                100.5,
+                                50.375
+                            ],
+                            "confidence": 0.99
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,108 @@
+{
+    "pages": [
+        {
+            "page_no": 1,
+            "size": {
+                "width": 595.0,
+                "height": 842.0
+            },
+            "tables": [
+                {
+                    "self_ref": "#/tables/0",
+                    "cells": [
+                        {
+                            "row_index": 0,
+                            "col_index": 0,
+                            "content": {
+                                "text": "Item",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                10.0,
+                                10.0,
+                                50.0,
+                                20.0
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 0,
+                            "col_index": 1,
+                            "content": {
+                                "text": "Value",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                60.0,
+                                10.0,
+                                100.0,
+                                20.0
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 1,
+                            "col_index": 0,
+                            "content": {
+                                "text": "Item A",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                10.0,
+                                30.0,
+                                50.0,
+                                40.0
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 1,
+                            "col_index": 1,
+                            "content": {
+                                "text": "50",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                60.0,
+                                30.0,
+                                100.0,
+                                40.0
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 2,
+                            "col_index": 0,
+                            "content": {
+                                "text": "Item B",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                10.0,
+                                50.0,
+                                50.0,
+                                60.0
+                            ],
+                            "confidence": 0.99
+                        },
+                        {
+                            "row_index": 2,
+                            "col_index": 1,
+                            "content": {
+                                "text": "50",
+                                "format": "string"
+                            },
+                            "box_2d": [
+                                60.0,
+                                50.0,
+                                100.0,
+                                60.0
+                            ],
+                            "confidence": 0.99
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
