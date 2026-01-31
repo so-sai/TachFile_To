@@ -1,4 +1,6 @@
-# 🔧 TACHFILETO – HỆ THỐNG THIẾT KẾ GIAO DIỆN **V1.2**
+Aligned with: [MDS_ALIGNMENT_V1.0.md]
+
+# UI DESIGN SYSTEM V1.0
 
 ## *(Enterprise Visual Grammar – Corrected & Hardened)*
 

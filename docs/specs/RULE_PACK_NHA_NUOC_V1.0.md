@@ -1,4 +1,6 @@
-# RULE_PACK_NHA_NUOC.md - V1.1
+Aligned with: [MDS_ALIGNMENT_V1.0.md]
+
+# RULE_PACK_NHA_NUOC V1.0
 ## SPEC DUY NHẤT CHO IRON CORE ENGINE
 
 **Version:** 1.1.0  

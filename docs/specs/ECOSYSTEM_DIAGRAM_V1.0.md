@@ -1,4 +1,6 @@
-# TachFileTo Ecosystem Interaction Diagram
+Aligned with: [MDS_ALIGNMENT_V1.0.md]
+
+# ECOSYSTEM DIAGRAM V1.0
 
 **Version:** 1.0.0  
 **Purpose:** Visual representation of data flow and power boundaries in Elite 10 ecosystem  

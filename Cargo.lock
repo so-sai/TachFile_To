@@ -2379,6 +2379,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "iron_engine"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "iron_table",
+ "polars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "iron_python_bridge"
 version = "0.1.0"
 dependencies = [
@@ -2396,6 +2408,17 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "iron_table"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "serde",
+ "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3623,6 +3646,7 @@ dependencies = [
  "polars-lazy",
  "polars-ops",
  "polars-parquet",
+ "polars-plan",
  "polars-sql",
  "polars-time",
  "polars-utils",

@@ -1,202 +1,176 @@
-# MISSION: 2026-001 — UI DropZone & Ingestion Validation
+# MISSION: 017 — Deep Table Logic (Polars + Docling v2)
 
-**Mission ID:** 2026-001  
-**Status:** EXECUTION (Phase 2 Extraction Engine Complete)  
-**Created:** 2026-01-10  
-**IIP Version:** 1.1  
-**Project Type:** APP
+**Mission ID:** 017  
+**Status:** PLANNING  
+**Created:** 2026-01-31  
+**IIP Version:** 1.2  
+**Project Type:** ENGINE
 
 ---
 
 ## 1. DECISION CONTEXT
 
 ### Background
-TachFileTo has established constitutional boundaries (`BOUNDARY_MANIFEST.md`) and a data contract (`INGESTION_SCHEMA.json` v0.1). However, there is currently **no user interface** to:
-- Accept file drag-and-drop
-- Validate files against schema
-- Export signed JSON objects to `/temp/ingestion/`
+Mission 016 (Iron Hand Protocol) successfully cleaned the repository and established a stable V1.0 foundation. TachFileTo now has:
+- Clean crate structure with `/vendor` organization
+- Fortified `.gitignore` preventing pollution
+- Organized documentation hierarchy (`/docs/specs` and `/docs/archive`)
+- Stable `main` branch ready for advanced features
 
 ### Problem Statement
-Users cannot interact with TachFileTo because there is no UI implementation. We need a **minimal, stateless UI** that:
-1. Accepts PDF/DOCX/XLSX files via drag-and-drop
-2. Validates file structure (without processing content yet)
-3. Generates mock `INGESTION_SCHEMA.json` v0.1 compliant objects
-4. Displays validation results in < 0.1 seconds (Cockpit UI standard)
+Current extraction capabilities (Docling v1) provide basic text and layout extraction, but **table processing remains shallow**:
+1. Tables are extracted as raw structures without semantic understanding
+2. No integration with modern data processing libraries (Polars)
+3. Limited ability to transform extracted tables into queryable datasets
+4. Missing validation for complex table structures (merged cells, nested headers)
 
 ### Strategic Importance
-This is the **first user-facing feature** of TachFileTo. It must:
-- Demonstrate constitutional compliance (Stateless, Zero Business Logic)
-- Prove schema validation works
-- Establish UI performance baseline (< 0.1s response)
-- Serve as foundation for future extraction engines
+This mission establishes TachFileTo as a **data-first extraction engine**:
+- Enables downstream analytics and BI integration
+- Provides foundation for BOQ (Bill of Quantities) processing
+- Demonstrates deterministic table parsing at scale
+- Positions TachFileTo for enterprise document processing workflows
 
 ---
 
 ## 2. SCOPE
 
 ### In-Scope
-1. **UI Components**
-   - DropZone component (drag-and-drop area)
-   - File validation indicator (visual feedback)
-   - Export button (write to `/temp/ingestion/`)
+1. **Polars Integration**
+   - Add Polars as dependency for table processing
+   - Create conversion layer: Docling tables → Polars DataFrames
+   - Implement schema inference for extracted tables
+   - Add basic table validation (column count, data types)
 
-2. **Validation Logic (Rust)**
-   - File type detection (PDF/DOCX/XLSX)
-   - File size limits (prevent memory overflow)
-   - Schema structure validation (no content extraction yet)
-   - Mock data generation for `pages` array
+2. **Docling v2 Upgrade**
+   - Upgrade from Docling v1 to v2 (if available)
+   - Leverage enhanced table detection capabilities
+   - Integrate improved cell merging logic
+   - Utilize advanced layout analysis
 
-3. **Schema Compliance**
-   - Generate valid `INGESTION_SCHEMA.json` v0.1 objects
-   - Include all required fields (`source`, `document_type`, `checksum`, etc.)
-   - Mock `origin_signature` (Ed25519 implementation deferred to Phase 2)
-   - Mock `extraction_meta` with placeholder values
+3. **Table Processing Pipeline**
+   - Design deterministic table extraction workflow
+   - Implement table confidence scoring
+   - Add table metadata enrichment (row/column counts, headers)
+   - Create export formats (CSV, Parquet, JSON)
 
 ### Out-of-Scope (Explicitly Deferred)
-- ❌ **JsonPreview & Clipboard** (Deferred to Phase 2 per Skeptic)
-- [x] Actual PDF/DOCX content extraction (Implemented v2.0.0 via Docling)
-- ❌ Ed25519 signature generation (Phase 4)
-- [x] Real checksum calculation (Implemented SHA-256)
-- ❌ iron_core integration (Phase 3)
-- ❌ TTL cleanup mechanism (Phase 3)
-- ❌ Multi-file batch processing (Phase 4)
+- ❌ BOQ-specific business logic (Mission 018+)
+- ❌ MasterFormat classification (Constitutional violation)
+- ❌ Multi-document table aggregation (Phase 2)
+- ❌ Machine learning-based table detection (Future research)
+- ❌ Real-time streaming table processing (Performance optimization phase)
 
 ### Files to Modify
-- `ui/src/components/DropZone.tsx` (NEW)
-- `ui/src/components/ValidationPanel.tsx` (NEW)
-- `ui/src/components/JsonPreview.tsx` (NEW)
-- `ui/src-tauri/src/commands/validate_file.rs` (NEW)
-- `ui/src-tauri/src/lib.rs` (MODIFY - register commands)
+- `libs/elite_pdf/Cargo.toml` (ADD Polars dependency)
+- `libs/elite_pdf/src/table_processor.rs` (NEW)
+- `libs/elite_pdf/src/polars_bridge.rs` (NEW)
+- `libs/elite_pdf/build.rs` (VERIFY compatibility)
+- `src/core/extraction_engine.rs` (MODIFY - integrate table pipeline)
 
 ### Files NOT to Touch
 - `docs/BOUNDARY_MANIFEST.md` (Constitutional - frozen)
-- `docs/specs/INGESTION_SCHEMA.json` (Contract - frozen)
-- `.project-context/ANTI_GRAVITY.md` (Philosophy - frozen)
-- Any `iron_core` related files
+- `.gitignore` (Just fortified in Mission 016)
+- `libs/elite_pdf/vendor/` (Stable library location)
 
 ---
 
 ## 3. TASKS
 
-### 3.1 Rust Backend (Validation Logic)
-- [ ] Create `src-tauri/src/commands/validate_file.rs`
-  - [ ] Implement `validate_file_type(path: String) -> Result<FileType, String>`
-  - [ ] Implement `generate_mock_ingestion_object(path: String) -> Result<IngestionObject, String>`
-  - [ ] Add file size limit check (max 100MB for Phase 1)
+### 3.1 Research & Planning
+- [ ] Evaluate Polars vs Arrow for table processing
+- [ ] Review Docling v2 changelog and migration guide
+- [ ] Design table extraction pipeline architecture
+- [ ] Define table confidence scoring algorithm
 
-- [ ] Update `src-tauri/src/lib.rs`
-  - [ ] Register `validate_file` command
-  - [ ] Register `generate_mock_ingestion_object` command
+### 3.2 Dependency Integration
+- [ ] Add Polars to `Cargo.toml` with appropriate features
+- [ ] Verify build stability with new dependencies
+- [ ] Update `build.rs` if needed for Polars linking
+- [ ] Test compatibility with existing MuPDF integration
 
-- [ ] Create `src-tauri/src/models/ingestion.rs`
-  - [ ] Define `IngestionObject` struct matching schema v0.1
-  - [ ] Implement `serde` serialization
-  - [ ] Add mock data generators
+### 3.3 Core Implementation
+- [ ] Create `table_processor.rs` module
+- [ ] Implement Docling → Polars conversion
+- [ ] Add table validation logic
+- [ ] Create export utilities (CSV, Parquet)
 
-### 3.2 React Frontend (UI Components)
-- [ ] Create `ui/src/components/DropZone.tsx`
-  - [ ] Implement drag-and-drop handlers
-  - [ ] Call Tauri `validate_file` command
-  - [ ] Display validation status (< 0.1s requirement)
-
-- [ ] Create `ui/src/components/ValidationPanel.tsx`
-  - [ ] Show file metadata (name, size, type)
-  - [ ] Display validation warnings (if any)
-  - [ ] Show confidence scores (mocked for now)
-
-- [ ] **DEFERRED:** `ui/src/components/JsonPreview.tsx` (Phase 2)
-
-- [ ] Update `ui/src/App.tsx`
-  - [ ] Integrate DropZone component
-  - [ ] Wire up state management (Zustand)
-  - [ ] Add export button (write to `/temp/ingestion/`)
-
-### 3.3 Testing
-- [ ] Rust unit tests
-  - [ ] Test file type detection
-  - [ ] Test mock object generation
-  - [ ] Test file size limits
-
-- [ ] React component tests (optional for Phase 1)
-  - [ ] DropZone drag-and-drop behavior
-  - [ ] Validation panel rendering
-
-- [ ] Manual UI testing
-  - [ ] Drag PDF → see validation result < 0.1s
-  - [ ] Drag DOCX → see validation result < 0.1s
-  - [ ] Drag invalid file → see error message
-  - [ ] Export JSON → verify file written to `/temp/ingestion/`
+### 3.4 Testing & Validation
+- [ ] Unit tests for table conversion
+- [ ] Integration tests with real PDF samples
+- [ ] Performance benchmarks (tables/second)
+- [ ] Determinism verification (same input → same output)
 
 ---
 
 ## 4. ACCEPTANCE CRITERIA
 
 ### 4.1 Functional Requirements
-- [ ] User can drag-and-drop PDF/DOCX/XLSX files
-- [ ] Validation result appears in < 0.1 seconds
-- [ ] Generated JSON matches `INGESTION_SCHEMA.json` v0.1
-- [ ] Export button writes file to `/temp/ingestion/`
-- [ ] Invalid files show clear error messages
+- [ ] Extract tables from PDF with \u003e 90% structural accuracy
+- [ ] Convert extracted tables to Polars DataFrames
+- [ ] Export tables to CSV/Parquet with correct schema
+- [ ] Handle merged cells and complex headers
 
 ### 4.2 Constitutional Compliance
-- [ ] **Stateless:** No file paths stored in UI preferences
-- [ ] **Zero Business Logic:** No MasterFormat assignment, no BOQ generation
-- [ ] **Contract-Only:** All exports conform to schema v0.1
-- [ ] **Fail-Fast:** Invalid files rejected immediately with clear errors
+- [ ] **Zero Business Logic:** No BOQ interpretation, no cost estimation
+- [ ] **Deterministic:** Same PDF → same table output (byte-identical)
+- [ ] **Contract-Only:** All exports conform to defined schemas
+- [ ] **Fail-Fast:** Invalid tables rejected with clear error messages
 
 ### 4.3 Performance
-- [ ] Validation response < 0.1 seconds (Cockpit UI standard)
-- [ ] UI remains responsive during file processing
-- [ ] No memory leaks (test with 10 consecutive file drops)
+- [ ] Table extraction \u003c 2 seconds per page (average)
+- [ ] Memory usage \u003c 500MB for 100-page documents
+- [ ] Build time increase \u003c 30 seconds (Polars compilation)
 
 ### 4.4 Documentation
-- [ ] Update `README_DEV.md` with UI testing instructions
-- [ ] Add comments explaining mock data generation
-- [ ] Document deferred features (Ed25519, real extraction)
+- [ ] Update `README.md` with table processing capabilities
+- [ ] Document Polars integration in `/docs/specs`
+- [ ] Add table extraction examples
+- [ ] Create migration guide from v1 to v2
 
 ---
 
 ## 5. RISKS & CONSTRAINTS
 
 ### 5.1 Technical Risks
-- **Risk:** Tauri IPC overhead might exceed 0.1s budget
-  - **Mitigation:** Use async commands, measure with `console.time()`
+- **Risk:** Polars dependency increases binary size significantly
+  - **Mitigation:** Use feature flags to make Polars optional
 
-- **Risk:** Mock data might not match real extraction output
-  - **Mitigation:** Design mocks based on actual PDF structure research
+- **Risk:** Docling v2 may have breaking API changes
+  - **Mitigation:** Maintain compatibility layer for v1
 
 ### 5.2 Scope Creep Risks
-- **Risk:** Temptation to add "real" PDF extraction
-  - **Mitigation:** Skeptic review will catch this
+- **Risk:** Temptation to add BOQ-specific logic
+  - **Mitigation:** Strict constitutional review
 
-- **Risk:** Adding "helpful" features like recent files
-  - **Mitigation:** Constitutional violation - auto-reject
+- **Risk:** Adding "smart" table interpretation
+  - **Mitigation:** Keep processing purely structural
 
 ### 5.3 Dependencies
-- **Dependency:** `INGESTION_SCHEMA.json` v0.1 must be stable
-  - **Status:** Frozen (committed in previous mission)
+- **Dependency:** Stable Rust toolchain (Edition 2024)
+  - **Status:** Already configured
 
-- **Dependency:** Tauri v2 capabilities must allow file access
-  - **Status:** Already configured (`core:default`)
+- **Dependency:** Clean repository (Mission 016)
+  - **Status:** ✅ Complete
 
 ---
 
 ## 6. SUCCESS METRICS
 
 **Mission succeeds if:**
-1. User can drag-and-drop a file and see validation in < 0.1s
-2. Generated JSON passes online schema validator
-3. No constitutional violations detected by Skeptic
-4. Code passes `cargo test` and TypeScript compilation
+1. Tables extracted from PDF can be queried with Polars
+2. Export formats (CSV/Parquet) are valid and deterministic
+3. No constitutional violations detected
+4. Build remains stable with new dependencies
 
 **Mission fails if:**
-1. Validation takes > 0.1 seconds
-2. Generated JSON doesn't match schema v0.1
-3. Skeptic finds boundary violations
-4. Code introduces state persistence
+1. Table extraction accuracy \u003c 80%
+2. Memory usage exceeds 1GB for typical documents
+3. Build time increases \u003e 2 minutes
+4. Business logic leaks into extraction layer
 
 ---
 
-**Next Step:** AUDITING (Skeptic review)  
-**Estimated Duration:** 2-3 hours (coding) + 30 minutes (testing)  
-**Blocking Issues:** None
+**Next Step:** Research Polars integration patterns  
+**Estimated Duration:** 4-6 hours (implementation) + 2 hours (testing)  
+**Blocking Issues:** None (Mission 016 complete)

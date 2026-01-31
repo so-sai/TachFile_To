@@ -1,0 +1,15 @@
+[package]
+name = "iron_table"
+version = "0.1.0"
+edition = "2024"
+description = "Iron Table Truth - The Structural Truth Engine"
+authors = ["Elite 9 Team <elite9@tachfileto.vn>"]
+license = "MIT"
+repository = "https://github.com/elite9/tachfileto"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0"
+sha2 = "0.10"
+hex = "0.4"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["ui/src-tauri", "libs/iron_python_bridge", "libs/elite_pdf"]
+members = ["ui/src-tauri", "libs/iron_python_bridge", "libs/elite_pdf", "libs/iron_table", "libs/iron_engine"]
 resolver = "2"
 
 [profile.release]

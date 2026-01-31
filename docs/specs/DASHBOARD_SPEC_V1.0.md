@@ -1,4 +1,6 @@
-# TACHFILETO V3.0 - MASTER SPECIFICATION (IRON CORE RELEASE)
+Aligned with: [MDS_ALIGNMENT_V1.0.md]
+
+# DASHBOARD SPECIFICATION V1.0
 
 **Version:** 3.1.0 (Iron Core Production + Sheet Selector)  
 **Last Updated:** 2025-12-26  

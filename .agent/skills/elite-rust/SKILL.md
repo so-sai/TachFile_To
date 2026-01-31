@@ -38,7 +38,46 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
 - **Timeout Policy**: Every worker task must have a hard timeout to prevent blocking the dispatcher.
 - **Zero-Lag IPC**: Round-trip time (RTT) for IPC MUST NOT exceed 20ms. Use persistent worker pools to avoid cold-start overhead. Any refactoring that degrades IPC performance beyond this threshold MUST be rejected.
 
+## Polars Integration (Mission 018+)
+
+- **Version Lock**: Use Polars `0.52.x` for stability and API consistency.
+- **DataFrame Construction**: 
+  - Use `DataFrame::new(Vec<Column>)` (not `Vec<Series>`)
+  - Convert `Series` → `Column` via `.into_column()` or `Column::from(series)`
+- **Type Safety**: 
+  - Column names must use `.into()` for `PlSmallStr` compatibility
+  - Example: `Series::new((&col_name).into(), &values)`
+  - Avoid `.unwrap()` on DataFrame operations — use `Result` propagation
+- **Testing**: 
+  - Every Polars operation must have a unit test with known input/output
+  - Benchmark DataFrame creation < 50ms per table (per `LATENCY_BUDGET.md`)
+- **Documentation**: 
+  - Always check Polars docs for current version before implementation
+  - Polars API changes frequently between minor versions
+
+## Lessons Learned (Mission 018)
+
+### ❌ What Went Wrong
+1. **Ignored Skill Standards**: Used Polars `0.45` instead of `0.52.x` specified in skill
+2. **No TDD**: Wrote implementation before tests, leading to trial-and-error debugging
+3. **API Assumptions**: Guessed Polars API instead of reading docs, wasted time on type mismatches
+4. **Missing Observability**: No `#[tracing::instrument]` on core functions
+
+### ✅ What Was Fixed
+1. **Version Alignment**: Upgraded to Polars `0.52` — clean build with no breaking changes
+2. **Type Corrections**: 
+   - `Vec<Series>` → `Vec<Column>` for DataFrame construction
+   - Added `.into()` for `PlSmallStr` column names
+3. **Dependency Management**: Added missing `chrono` for timestamp handling
+
+### 📋 Process Improvements
+- **Read Skill First**: Always check skill requirements before choosing dependencies
+- **TDD Discipline**: Write failing test → implement → verify (Red-Green-Refactor)
+- **Version Lock Early**: Pin exact versions in `Cargo.toml` to avoid API drift
+- **Document Assumptions**: If deviating from skill, document why in commit message
+
 ## Refactor & Safety Audit (Elite Mandatory)
+
 - **Unsafe Policy**
   - `unsafe` blocks are forbidden by default.
   - If unavoidable:
