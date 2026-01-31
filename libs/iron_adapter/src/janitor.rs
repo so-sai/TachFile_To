@@ -1,4 +1,4 @@
-use iron_table::contract::{TableTruth, TableRow, CellValue, DataType};
+use iron_table::contract::{TableTruth, TableRow, CellValue, DataType, EncodingStatus};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 // use regex::Regex;
@@ -132,22 +132,34 @@ impl Janitor for IronJanitor {
                 let col_def = &table.schema.columns[cell.col_idx];
                 let mut current_cell = cell.clone();
 
-                // 1. Check for Encoding Integrity (Mission 021)
+                // 1. Check for Encoding Integrity (Mission 021/022)
                 if let CellValue::Text(s) = &cell.value {
-                    match crate::gatekeeper::EncodingGatekeeper::scan(s) {
-                        crate::gatekeeper::EncodingStatus::Invalid | crate::gatekeeper::EncodingStatus::Suspicious => {
-                             report.changes.push(CellChange {
-                                row_idx: cell.row_idx,
-                                col_idx: cell.col_idx,
-                                original_text: s.clone(),
-                                cleaned_value: s.clone(), // Keep as is, but flag the error
-                                action: "flagged_encoding_corruption".to_string(),
-                            });
-                            // We don't change the value, but we could return an error if we wanted to abort.
-                            // For now, we allow it to flow to Truth to be REJECTED.
-                        }
-                        _ => {}
+                    let (status, evidence) = crate::gatekeeper::EncodingGatekeeper::scan(s);
+                    current_cell.encoding_status = status;
+                    current_cell.encoding_evidence = evidence.clone();
+
+                    if status != EncodingStatus::Clean {
+                         report.changes.push(CellChange {
+                            row_idx: cell.row_idx,
+                            col_idx: cell.col_idx,
+                            original_text: s.clone(),
+                            cleaned_value: s.clone(),
+                            action: format!("flagged_encoding_{:?}", status).to_lowercase(),
+                        });
                     }
+                }
+
+                // 2. Silencing Low Confidence (Safe Nullification)
+                if cell.confidence < 0.7 && col_def.nullable {
+                    current_cell.value = CellValue::Null;
+                    report.total_cells_cleaned += 1;
+                    report.changes.push(CellChange {
+                        row_idx: cell.row_idx,
+                        col_idx: cell.col_idx,
+                        original_text: cell.source_text.clone(),
+                        cleaned_value: "Null".to_string(),
+                        action: "silenced_low_confidence".to_string(),
+                    });
                 }
 
                 match (&col_def.dtype, &cell.value) {

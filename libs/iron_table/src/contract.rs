@@ -34,6 +34,7 @@ pub struct ColumnDef {
     pub dtype: DataType,            // Int | Float64 | Utf8 | Date
     pub unit: Option<String>,       // "m²", "VND", etc.
     pub nullable: bool,
+    pub is_critical: bool,          // If true, even 'Suspicious' encoding triggers rejection
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -42,6 +43,14 @@ pub enum DataType {
     Float64,
     Utf8,
     Date,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub enum EncodingStatus {
+    #[default]
+    Clean,
+    Suspicious,
+    Invalid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -58,6 +67,8 @@ pub struct TableCell {
     pub bbox: BoundingBox,         // Original coordinates in PDF
     pub confidence: f32,            // Docling extraction confidence
     pub source_text: String,        // Raw OCR text before normalization
+    pub encoding_status: EncodingStatus,
+    pub encoding_evidence: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -118,6 +129,12 @@ pub enum TableRejection {
 
     #[error("Size Constraint Violation: {0}")]
     SizeConstraintViolation(String),
+
+    #[error("Encoding Corruption: {0}")]
+    EncodingCorruption(String),
+
+    #[error("Low Confidence: {0}")]
+    LowConfidence(String),
 }
 
 impl TableTruth {
@@ -140,17 +157,35 @@ impl TableTruth {
              return Err(TableRejection::ContractViolation(format!("Schema column count {} != defined columns {}", self.schema.col_count, self.schema.columns.len())));
         }
 
-        // 3. Confidence Check
-        // Flatten rows to check cells
+        // 3. Truth Scan
         for row in &self.rows {
              if row.cells.len() != self.schema.col_count {
                   return Err(TableRejection::ContractViolation(format!("Row {} cell count {} != schema col count {}", row.row_idx, row.cells.len(), self.schema.col_count)));
              }
+
              for cell in &row.cells {
-                  // Only enforce confidence for non-null values.
-                  // Nulls (including those cleaned by Janitor) are allowed to be low confidence.
-                  if cell.value != CellValue::Null && cell.confidence < 0.7 {
-                        return Err(TableRejection::ContractViolation(format!("Cell at ({}, {}) has low confidence {}", cell.row_idx, cell.col_idx, cell.confidence)));
+                  let col_def = &self.schema.columns[cell.col_idx];
+
+                  // A. Confidence Check (Skip if Null)
+                  if !matches!(cell.value, CellValue::Null) && cell.confidence < 0.7 {
+                       return Err(TableRejection::LowConfidence(format!("Row {}, Col {} has low confidence {}", cell.row_idx, cell.col_idx, cell.confidence)));
+                  }
+
+                  // B. Encoding Enforcement (Mission 022)
+                  match cell.encoding_status {
+                      EncodingStatus::Invalid => {
+                          return Err(TableRejection::EncodingCorruption(format!(
+                              "Invalid encoding at row {}, col {}: {}", 
+                              cell.row_idx, cell.col_idx, cell.encoding_evidence.as_deref().unwrap_or("Unknown")
+                          )));
+                      }
+                      EncodingStatus::Suspicious if col_def.is_critical => {
+                          return Err(TableRejection::EncodingCorruption(format!(
+                              "Suspicious encoding in critical column '{}' at row {}, col {}: {}", 
+                              col_def.name, cell.row_idx, cell.col_idx, cell.encoding_evidence.as_deref().unwrap_or("Unknown")
+                          )));
+                      }
+                      _ => {}
                   }
              }
         }

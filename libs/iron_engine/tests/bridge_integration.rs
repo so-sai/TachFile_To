@@ -1,5 +1,5 @@
 use iron_engine::{to_dataframe, TableTruth};
-use iron_adapter::Janitor;
+use iron_adapter::{Janitor, IronJanitor};
 use std::fs;
 use std::path::PathBuf;
 
@@ -22,7 +22,8 @@ fn test_bridge_separation_of_powers() {
 
     // 3. APPLY JANITOR (Adapter Layer)
     // Janitor cleans the chaos so the Truth Layer can accept it.
-    Janitor::clean(&mut table);
+    let (cleaned_table, _report) = IronJanitor.cleanse(&table);
+    table = cleaned_table;
 
     // 4. VALIDATE TRUTH (The Gate)
     // After Janitor does its job, the Truth layer SHOULD pass.

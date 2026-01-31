@@ -1,47 +1,63 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum EncodingStatus {
-    Clean,
-    Suspicious,
-    Invalid,
-}
+use iron_table::contract::EncodingStatus;
 
 pub struct EncodingGatekeeper;
 
+const MOJIBAKE_SCARS: &[&str] = &[
+    "├¬", // ê
+    "├┤", // ô
+    "├│", // ó
+    "├á", // à
+    "├║", // ú
+    "├║", // ù (sometimes ambiguous)
+    "├¡", // í
+    "├®", // é
+    "├â", // Â
+    "├ä", // Ä
+    "├ë", // Ë
+];
+
 impl EncodingGatekeeper {
     /// Scans a string for character integrity.
-    pub fn scan(input: &str) -> EncodingStatus {
-        // 1. Basic UTF-8 validity is guaranteed by Rust's &str. 
-        // If we got here through a safe bridge, it's valid UTF-8 bytes.
-        // However, it might be "Logical Mojibake" (valid UTF-8 but junk characters from double-encoding).
-
+    /// Returns (Status, Evidence)
+    pub fn scan(input: &str) -> (EncodingStatus, Option<String>) {
         if input.is_empty() {
-            return EncodingStatus::Clean;
+            return (EncodingStatus::Clean, None);
         }
 
-        // 2. Mojibake Detection Heuristics (Elite Standard)
-        // Look for common corruption markers in Vietnamese text
-        // - Character sequences like ├, ¬, Â, Ã, followed by specific symbols
-        // - High frequency of non-standard symbols in supposedly natural text
-        
-        let mojibake_markers = ['├', '¬', '┤', '┐', '└', '┴', '┬', '┼'];
-        let mut suspicious_count = 0;
-
-        for c in input.chars() {
-            if mojibake_markers.contains(&c) {
-                suspicious_count += 1;
+        // 1. Fixed "Scars" Detection (Highest Accuracy)
+        for scar in MOJIBAKE_SCARS {
+            if input.contains(scar) {
+                return (EncodingStatus::Invalid, Some(format!("Found Mojibake scar: '{}'", scar)));
             }
         }
 
-        let density = suspicious_count as f32 / input.chars().count() as f32;
+        // 2. Box-Drawing Density Heuristic
+        // CP437 interpretation of UTF-8 VN text often results in box-drawing characters
+        let box_drawing_chars = ['├', '┤', '┐', '└', '┴', '┬', '┼', '│', '─'];
+        let mut box_chars_in_words = 0;
+        let char_count = input.chars().count();
+        
+        let chars: Vec<char> = input.chars().collect();
+        for i in 0..chars.len() {
+            if box_drawing_chars.contains(&chars[i]) {
+                // Heuristic: Is it adjacent to alphabetic characters?
+                let adjacent_to_alpha = (i > 0 && chars[i-1].is_alphabetic()) 
+                    || (i < chars.len() - 1 && chars[i+1].is_alphabetic());
+                
+                if adjacent_to_alpha {
+                    box_chars_in_words += 1;
+                }
+            }
+        }
 
-        if density > 0.05 {
-            EncodingStatus::Invalid
-        } else if suspicious_count > 0 {
-            EncodingStatus::Suspicious
+        let density = box_chars_in_words as f32 / char_count as f32;
+
+        if density > 0.1 {
+            (EncodingStatus::Invalid, Some(format!("High density box-drawing characters ({:.2})", density)))
+        } else if box_chars_in_words > 0 {
+            (EncodingStatus::Suspicious, Some(format!("Found {} suspicious box characters", box_chars_in_words)))
         } else {
-            EncodingStatus::Clean
+            (EncodingStatus::Clean, None)
         }
     }
 }
@@ -52,17 +68,20 @@ mod tests {
 
     #[test]
     fn test_gatekeeper_clean() {
-        assert_eq!(EncodingGatekeeper::scan("Bê tông móng"), EncodingStatus::Clean);
-        assert_eq!(EncodingGatekeeper::scan("1.250.000"), EncodingStatus::Clean);
+        assert_eq!(EncodingGatekeeper::scan("Bê tông móng").0, EncodingStatus::Clean);
+        assert_eq!(EncodingGatekeeper::scan("1.250.000").0, EncodingStatus::Clean);
+        assert_eq!(EncodingGatekeeper::scan("│ Khối lượng │").0, EncodingStatus::Clean); // Literal box drawing (not word-adjacent)
     }
 
     #[test]
     fn test_gatekeeper_mojibake() {
         // The exact mojibake string from the test failure
         let corrupted = "B├¬ t├┤ng m├│ng"; 
-        assert_eq!(EncodingGatekeeper::scan(corrupted), EncodingStatus::Invalid);
+        let (status, evidence) = EncodingGatekeeper::scan(corrupted);
+        assert_eq!(status, EncodingStatus::Invalid);
+        assert!(evidence.unwrap().contains("Found Mojibake scar"));
         
-        let partial_corrupt = "Text with a ¬ character";
-        assert_eq!(EncodingGatekeeper::scan(partial_corrupt), EncodingStatus::Suspicious);
+        let partial_corrupt = "Text with suspicious├character";
+        assert_eq!(EncodingGatekeeper::scan(partial_corrupt).0, EncodingStatus::Suspicious);
     }
 }

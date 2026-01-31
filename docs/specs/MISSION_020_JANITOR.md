@@ -1,6 +1,8 @@
+Aligned with: [MDS_ALIGNMENT_V1.0.md]
+
 # Mission 020: The Pre-Truth Janitor (Adapter Layer)
 
-> **Status:** DRAFT (V0.1)
+> **Status:** GRADUATED (V1.0)
 > **Layer:** Adapter (Pre-Truth)
 > **Philosophy:** "Clean the mud before entering the house."
 

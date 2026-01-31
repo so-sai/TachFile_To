@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use iron_table::{
         TableTruth, TableSchema, ColumnDef, DataType, TableRow, TableCell, CellValue,
-        BoundingBox, ExtractionMeta
+        BoundingBox, ExtractionMeta, EncodingStatus
     };
     use std::path::PathBuf;
 
@@ -121,18 +121,21 @@ mod tests {
                         dtype: DataType::Int,
                         unit: None,
                         nullable: false,
+                        is_critical: true,
                     },
                     ColumnDef {
                         name: "amount".to_string(),
                         dtype: DataType::Float64,
                         unit: Some("VND".to_string()),
                         nullable: false,
+                        is_critical: true,
                     },
                     ColumnDef {
                         name: "description".to_string(),
                         dtype: DataType::Utf8,
                         unit: None,
                         nullable: true,
+                        is_critical: false,
                     },
                 ],
                 row_count: 2,
@@ -149,6 +152,8 @@ mod tests {
                             bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.95,
                             source_text: "1".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                         TableCell {
                             row_idx: 0,
@@ -157,6 +162,8 @@ mod tests {
                             bbox: BoundingBox { x: 10.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.92,
                             source_text: "1000.50".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                         TableCell {
                             row_idx: 0,
@@ -165,6 +172,8 @@ mod tests {
                             bbox: BoundingBox { x: 20.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.88,
                             source_text: "Item A".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                     ],
                 },
@@ -178,6 +187,8 @@ mod tests {
                             bbox: BoundingBox { x: 0.0, y: 10.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.96,
                             source_text: "2".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                         TableCell {
                             row_idx: 1,
@@ -186,6 +197,8 @@ mod tests {
                             bbox: BoundingBox { x: 10.0, y: 10.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.94,
                             source_text: "2500.75".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                         TableCell {
                             row_idx: 1,
@@ -194,6 +207,8 @@ mod tests {
                             bbox: BoundingBox { x: 20.0, y: 10.0, width: 10.0, height: 10.0, page: 1 },
                             confidence: 0.90,
                             source_text: "Item B".to_string(),
+                            encoding_status: EncodingStatus::Clean,
+                            encoding_evidence: None,
                         },
                     ],
                 },

@@ -1,5 +1,5 @@
 use iron_adapter::{Janitor, IronJanitor};
-use iron_table::contract::{TableTruth, TableSchema, ColumnDef, DataType, TableRow, TableCell, CellValue, BoundingBox, ExtractionMeta};
+use iron_table::contract::{TableTruth, TableSchema, ColumnDef, DataType, TableRow, TableCell, CellValue, BoundingBox, ExtractionMeta, EncodingStatus};
 use std::path::PathBuf;
 
 #[test]
@@ -7,9 +7,9 @@ fn test_janitor_cleans_dirty_data() {
     // 1. Setup 'Dirty' TableTruth (as if from Docling)
     let schema = TableSchema {
         columns: vec![
-            ColumnDef { name: "item".to_string(), dtype: DataType::Utf8, unit: None, nullable: false },
-            ColumnDef { name: "quantity".to_string(), dtype: DataType::Float64, unit: Some("m³".to_string()), nullable: false },
-            ColumnDef { name: "price".to_string(), dtype: DataType::Float64, unit: Some("VND".to_string()), nullable: false },
+            ColumnDef { name: "item".to_string(), dtype: DataType::Utf8, unit: None, nullable: false, is_critical: true },
+            ColumnDef { name: "quantity".to_string(), dtype: DataType::Float64, unit: Some("m³".to_string()), nullable: false, is_critical: true },
+            ColumnDef { name: "price".to_string(), dtype: DataType::Float64, unit: Some("VND".to_string()), nullable: false, is_critical: true },
         ],
         row_count: 2,
         col_count: 3,
@@ -25,6 +25,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.9,
                 source_text: "Be tong mong".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
             TableCell {
                 row_idx: 0,
@@ -33,6 +35,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.85,
                 source_text: "1.250,50 m3".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
             TableCell {
                 row_idx: 0,
@@ -41,6 +45,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.88,
                 source_text: "500.000 VND".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
         ],
     };
@@ -55,6 +61,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.9,
                 source_text: "Thep san".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
             TableCell {
                 row_idx: 1,
@@ -63,6 +71,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.9,
                 source_text: "100".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
             TableCell {
                 row_idx: 1,
@@ -71,6 +81,8 @@ fn test_janitor_cleans_dirty_data() {
                 bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                 confidence: 0.9,
                 source_text: "50".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
             },
         ],
     };
@@ -114,4 +126,74 @@ fn test_janitor_cleans_dirty_data() {
 
     // 5. Final Truth Check
     clean_table.validate_contract().expect("Contract should be valid after Janitor cleaning");
+}
+
+#[test]
+fn test_janitor_rejects_mojibake_at_truth() {
+    let schema = TableSchema {
+        columns: vec![
+            ColumnDef { name: "item".to_string(), dtype: DataType::Utf8, unit: None, nullable: false, is_critical: true },
+        ],
+        row_count: 2,
+        col_count: 1,
+    };
+
+    let mojibake_row = TableRow {
+        row_idx: 0,
+        cells: vec![
+            TableCell {
+                row_idx: 0,
+                col_idx: 0,
+                value: CellValue::Text("B├¬ t├┤ng m├│ng".to_string()),
+                bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
+                confidence: 0.9,
+                source_text: "B├¬ t├┤ng m├│ng".to_string(),
+                encoding_status: EncodingStatus::Clean, // Initially "clean" before Janitor
+                encoding_evidence: None,
+            },
+        ],
+    };
+
+    let clean_row = TableRow {
+        row_idx: 1,
+        cells: vec![
+            TableCell {
+                row_idx: 1,
+                col_idx: 0,
+                value: CellValue::Text("Bê tông sạch".to_string()),
+                bbox: BoundingBox { x: 0.0, y: 10.0, width: 10.0, height: 10.0, page: 1 },
+                confidence: 0.9,
+                source_text: "Bê tông sạch".to_string(),
+                encoding_status: EncodingStatus::Clean,
+                encoding_evidence: None,
+            },
+        ],
+    };
+
+    let table = TableTruth {
+        table_id: "test_mojibake".to_string(),
+        source_file: PathBuf::from("test.pdf"),
+        source_page: 1,
+        schema,
+        rows: vec![mojibake_row, clean_row],
+        extraction_meta: ExtractionMeta {
+            tool_version: "docling".to_string(),
+            timestamp: "now".to_string(),
+            confidence_score: 0.9,
+        },
+        bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
+    };
+
+    let janitor = IronJanitor;
+    let (clean_table, _report) = janitor.cleanse(&table);
+
+    // Verify cell status
+    assert_eq!(clean_table.rows[0].cells[0].encoding_status, EncodingStatus::Invalid);
+
+    // Verify Truth rejection
+    let result = clean_table.validate_contract();
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("Encoding Corruption"));
+    assert!(err_msg.contains("Mojibake scar"));
 }
