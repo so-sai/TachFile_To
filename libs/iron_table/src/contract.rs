@@ -147,7 +147,9 @@ impl TableTruth {
                   return Err(TableRejection::ContractViolation(format!("Row {} cell count {} != schema col count {}", row.row_idx, row.cells.len(), self.schema.col_count)));
              }
              for cell in &row.cells {
-                  if cell.confidence < 0.7 {
+                  // Only enforce confidence for non-null values.
+                  // Nulls (including those cleaned by Janitor) are allowed to be low confidence.
+                  if cell.value != CellValue::Null && cell.confidence < 0.7 {
                         return Err(TableRejection::ContractViolation(format!("Cell at ({}, {}) has low confidence {}", cell.row_idx, cell.col_idx, cell.confidence)));
                   }
              }
