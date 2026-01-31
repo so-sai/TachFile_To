@@ -101,14 +101,20 @@ TachFileTo **không ra quyết định**, **không phê duyệt**, **không thay
 * Tài liệu lưu trữ: `.project-context/ARCHIVE/`
 
 ### 📋 Thông số & Hướng dẫn (Specifications)
+*Thư mục: `docs/specs/`*
 
-* Trạng thái hệ thống: `docs/specs/MASTER_V3.0_DASHBOARD.md`
-* Quy tắc kiểm tra dữ liệu: `docs/specs/RULE_PACK_CORE_V1.0.md`
-* Giao thức IPC: `docs/specs/IPC_PROTOCOL.md`
-* Hợp đồng dữ liệu: `docs/specs/TRUTH_CONTRACT_V1.md`
-* Hệ thống thiết kế UI: `docs/specs/UI_DESIGN_SYSTEM.md`
-* Hướng dẫn sử dụng: `docs/GUIDE.md`
-* Lịch sử thay đổi: `docs/CHANGELOG.md`
+* **Master Dashboard:** [MASTER_V3.0_DASHBOARD.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/MASTER_V3.0_DASHBOARD.md)
+* **Giao thức IPC:** [IPC_PROTOCOL.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/IPC_PROTOCOL.md)
+* **Hợp đồng dữ liệu:** [TRUTH_CONTRACT_V1.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/TRUTH_CONTRACT_V1.md)
+* **Hệ thống thiết kế UI:** [UI_DESIGN_SYSTEM.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/UI_DESIGN_SYSTEM.md)
+* **Hướng dẫn vận hành:** [GUIDE.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/GUIDE.md)
+* **Lịch sử thay đổi:** [CHANGELOG.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/CHANGELOG.md)
+
+### 📂 Lưu trữ & Lịch sử (Archive)
+*Thư mục: `docs/archive/`*
+
+* **Lịch sử Mission:** [missions/](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/archive/missions/) (Các mốc từ 000 đến 015)
+* **Nghiên cứu & Nháp:** [research/](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/archive/research/) (Các bản nháp PyO3, R&D cũ)
 
 ---
 

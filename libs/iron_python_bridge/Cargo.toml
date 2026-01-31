@@ -46,6 +46,15 @@ tokio = { version = "1.43", features = ["full"] }
 # Tempfile for testing
 tempfile = "3.0"
 
+# System info for stress testing
+sysinfo = "0.32"
+
+# CPU detection for governor limits
+num_cpus = "1.16"
+
+# Futures utilities for concurrent testing
+futures = "0.3"
+
 [features]
 default = []
 # Enable when PyOxidizer build is ready

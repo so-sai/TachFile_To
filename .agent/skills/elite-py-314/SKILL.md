@@ -27,9 +27,11 @@ description: Python Engineering Doctrine (Python ≥ 3.14, Nogil-Ready, Correctn
 - **State**: Avoid shared mutable global state. Prefer message passing or immutable data structures.
 - **Primitives**: Thread-safe primitives must be explicit.
 
-## VI. Refactor Governance
-- **Legacy Migration**: Migrate legacy code toward strict typing incrementally.
-- **Plan First**: Present a refactor plan before changing behavior.
+## VI. Worker Life-cycle & IPC (Mission 014)
+- **Fate-sharing**: Workers MUST implement a "Watchdog" thread monitoring `stdin`. If `stdin` closes, the process MUST exit immediately.
+- **Standalone Mode**: Workers should be runnable via CLI with `--path` and `--lane` arguments for testing and isolation.
+- **JSON Serialization**: Return data MUST be valid JSON matching the `ExtractionProduct` schema.
+- **Dependency Isolation**: Prefer lightweight libraries for workers (e.g., polars, pymupdf) to keep memory footprint predictable.
 
 ## VII. Testing & Quality
 - **Coverage**: ≥ 85% for core logic.

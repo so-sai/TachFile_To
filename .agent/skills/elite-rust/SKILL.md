@@ -25,8 +25,18 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
 ## Observability
 - **Traceability**: Every result-bearing function must be traced or logged using the `tracing` crate. Use `#[tracing::instrument]` on core logic.
 
-## Extraction
-- **Pipeline**: Use the "Unified Extraction Pipeline" for all PDF, Docx, Xlsx, and MD processing.
+## Extraction (Unified Orchestrator)
+- **Architecture**: Use the "Unified Extraction Orchestrator" pattern. Orchestrators must be stateless, purely gaging capability and dispatching to lanes.
+- **Stability & Isolation**: Heavy FFI tasks (PDF/Office) MUST be isolated in sub-processes via `WorkerManager`.
+- **Fate-sharing**: Workers must monitor `stdin`. If parent drops, worker must exit immediately to avoid "ghost processes".
+- **Resource Governor**: Limit maximum concurrent workers using a `Semaphore`. Cap based on CPU core count or memory availability.
+- **Contract Enforcement**: All lanes must speak the `ExtractionProduct` JSON protocol.
+
+## Interoperability (IPC Protocol)
+- **JSON Stream**: Communication between Main (Rust) and Worker (Python) must be conducted via JSON over `stdin/stdout`.
+- **CamelCase Alignment**: All IPC payloads MUST be `camelCase`.
+- **Timeout Policy**: Every worker task must have a hard timeout to prevent blocking the dispatcher.
+- **Zero-Lag IPC**: Round-trip time (RTT) for IPC MUST NOT exceed 20ms. Use persistent worker pools to avoid cold-start overhead. Any refactoring that degrades IPC performance beyond this threshold MUST be rejected.
 
 ## Refactor & Safety Audit (Elite Mandatory)
 - **Unsafe Policy**

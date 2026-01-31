@@ -2,28 +2,31 @@
 //!
 //! Embedded Python runtime for Iron Core PDF extraction.
 //!
-//! ## Architecture (HARD MODE)
+//! ## Architecture (HARDENED MISSION 014)
 //!
-//! This crate follows the Iron Core policy:
-//! - ❌ NO subprocess
-//! - ❌ NO IPC
-//! - ✅ PyO3 + PyOxidizer ONLY
+//! This crate follows the Hardened Iron Core policy:
+//! - ✅ Process Isolation (via subprocess worker for heavy lanes)
+//! - ✅ PyO3 + PyOxidizer for light/embedded tasks
 //!
 //! ## Usage
-//!
-//! let result = bridge.extract_file_embedded("contract.pdf")?;
+//! ```rust
+//! let result = bridge.extract_file_unified("contract.pdf")?;
 //! ```
 
 pub mod models;
 pub mod ledger_migration;
 pub mod unified_extractor;
+pub mod capability_probe;
+#[cfg(test)]
+mod stress_test;
+pub mod process_isolation;
 
 use anyhow::{Context, Result as AnyResult};
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 use std::sync::Once;
 use std::path::PathBuf;
-use crate::models::IngestionResult;
+use crate::models::ExtractionProduct;
 use thiserror::Error;
 
 /// Errors that can occur during Python bridge operations
@@ -104,7 +107,7 @@ impl PythonBridge {
     ///
     /// # Performance Contract
     /// - Extraction for 100 pages SHOULD complete within 30s (SLA §4.2)
-    pub fn extract_file_embedded(&self, path: &str) -> AnyResult<IngestionResult> {
+    pub fn extract_file_embedded(&self, path: &str) -> AnyResult<ExtractionProduct> {
         if !self.initialized {
             anyhow::bail!("Python runtime not initialized");
         }
@@ -143,8 +146,8 @@ impl PythonBridge {
         }).map_err(|e| anyhow::anyhow!("Embedded Python call failed: {}", e))?;
 
         // Deserialize into Rust struct outside of GIL
-        let result: IngestionResult = serde_json::from_str(&result_json)
-            .context("Failed to deserialize IngestionResult from Python output")?;
+        let result: ExtractionProduct = serde_json::from_str(&result_json)
+            .context("Failed to deserialize ExtractionProduct from Python output")?;
 
         Ok(result)
     }
@@ -262,10 +265,10 @@ mod tests {
         let result = bridge.extract_file_embedded("dummy.pdf");
         
         match result {
-            Ok(ingestion) => {
-                assert_eq!(ingestion.source, "dummy.pdf");
-                assert!(ingestion.pages.len() >= 1);
-                assert_eq!(ingestion.extraction_meta.get("engine").unwrap(), "docling");
+            Ok(product) => {
+                assert_eq!(product.source, "dummy.pdf");
+                assert!(product.pages.len() >= 1);
+                assert_eq!(product.lane, "Pdf");
             },
             Err(e) => panic!("Embedded call failed: {:?}", e),
         }

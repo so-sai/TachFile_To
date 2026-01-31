@@ -36,6 +36,10 @@ impl LedgerManager {
     pub fn new(db_path: &Path) -> AnyResult<Self> {
         let conn = Connection::open(db_path).context("Failed to open SQLite ledger database")?;
 
+        // 🟢 GREEN-4: Enable WAL (Write-Ahead Logging) for high concurrency
+        conn.pragma_update(None, "journal_mode", "WAL")
+            .context("Failed to enable WAL mode")?;
+
         // Create table with proper schema
         conn.execute(
             r#"
@@ -73,6 +77,11 @@ impl LedgerManager {
         info!("Ledger initialized at: {}", db_path.display());
 
         Ok(Self { conn })
+    }
+
+    /// Insert a new entry (Alias for migrate_to_ledger for consistency)
+    pub fn insert_entry(&self, entry: &LedgerEntry) -> AnyResult<()> {
+        self.migrate_to_ledger(entry.clone())
     }
 
     /// Migrate extraction result to ledger (idempotent)

@@ -21,6 +21,10 @@ fn main() {
     // Phase 5: Link MuPDF Core Libraries
     println!("cargo:rustc-link-search=native={}", mupdf_lib_dir);
     
+    // ELITE 9 V1.0: Link with libraries in vendor/ directory
+    let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    println!("cargo:rustc-link-search=native={}/vendor", project_dir);
+    
     // Core Libraries (Static)
     let mupdf_libs = [
         "mupdf", "thirdparty", "resources", "harfbuzz", 

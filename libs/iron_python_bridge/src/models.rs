@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Metadata for an individual page, mapping 1-1 with Python `PageMetadata`
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PageMetadata {
     pub page: usize,
     pub content_type: String,
@@ -12,16 +12,25 @@ pub struct PageMetadata {
     pub table_columns: Option<usize>,
 }
 
-/// Complete ingestion result, mapping 1-1 with Python `IngestionResult`
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct IngestionResult {
+/// The "Canonical Truth" for Mission 014 extraction.
+/// All lanes (PDF, Office, MD) must return this unified struct.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtractionProduct {
     pub source: String,
     pub checksum: String,
+    pub lane: String,          // e.g. "PDF_OCR", "XLSX_POLARS"
+    pub content: String,       // Markdown (Mininal Truth)
+    pub evidence: serde_json::Value, // Metadata (Coordinates, Raw JSON)
     pub pages: Vec<PageMetadata>,
-    pub raw_content: Option<String>,
-    pub tables: Vec<serde_json::Value>,
-    pub extraction_meta: HashMap<String, serde_json::Value>,
+    pub performance_metrics: ExtractionMetrics,
     pub schema_version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtractionMetrics {
+    pub total_ms: i64,
+    pub lane_ms: i64,          // Time spent in the specific worker
+    pub worker_restarts: u32,  // Resilience tracking
 }
 
 #[cfg(test)]
@@ -29,41 +38,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_deserialize_ingestion_result() {
-        let json_data = r#"{
+    fn test_deserialize_extraction_product() {
+        let json_data = r##"{
             "source": "test_path/contract.pdf",
             "checksum": "sha256:abc123def456",
+            "lane": "PDF_OCR",
+            "content": "# Markdown Header",
+            "evidence": {"raw": "data"},
             "pages": [
                 {
                     "page": 1,
                     "content_type": "table",
                     "confidence": 0.98,
                     "text_length": 150
-                },
-                {
-                    "page": 2,
-                    "content_type": "text",
-                    "confidence": 0.95,
-                    "text_length": 500
                 }
             ],
-            "extraction_meta": {
-                "engine": "docling",
-                "engine_version": "2.68.0",
-                "format": "pdf"
+            "performance_metrics": {
+                "total_ms": 1000,
+                "lane_ms": 800,
+                "worker_restarts": 0
             },
-            "raw_content": "header content",
-            "tables": [],
-            "schema_version": "MF50-INGEST-0.1"
-        }"#;
+            "schema_version": "MF50-EP-0.1"
+        }"##;
 
-        let result: IngestionResult = serde_json::from_str(json_data).expect("Should deserialize correctly");
+        let result: ExtractionProduct = serde_json::from_str(json_data).expect("Should deserialize correctly");
         
-        assert_eq!(result.source, "test_path/contract.pdf");
-        assert_eq!(result.checksum, "sha256:abc123def456");
-        assert_eq!(result.pages.len(), 2);
-        assert_eq!(result.pages[0].content_type, "table");
-        assert_eq!(result.pages[0].page, 1);
-        assert_eq!(result.extraction_meta.get("engine").unwrap(), "docling");
+        assert_eq!(result.lane, "PDF_OCR");
+        assert_eq!(result.performance_metrics.lane_ms, 800);
+        assert!(result.content.contains("Markdown Header"));
     }
 }

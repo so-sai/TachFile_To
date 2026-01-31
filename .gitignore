@@ -1,64 +1,57 @@
-# Rust artifacts
-target/
-scripts/debug/
-ui/src-tauri/target/
-Cargo.lock
+# TachFileTo - BÀN TAY SẮT V1.0 (.gitignore)
 
-# Node artifacts
+# --- CORE ARTIFACTS ---
+target/
+**/target/
 node_modules/
+**/node_modules/
 dist/
+**/dist/
+.venv/
 .env
 .env.*
+**/thirdparty/
+**/third-party/
+**/vendor/
+!libs/elite_pdf/vendor/*.lib
 
-# OS/IDE junk
-.DS_Store
-Thumbs.db
-*.tmp
-*.bak
-*.new.*
-.vscode/
-.idea/
+# --- COMPILED BINARIES (BLOCKED AT ROOT) ---
+*.pyd
+*.lib
+*.exp
+*.pdb
+*.exe
+*.dll
 
-# Tauri
-ui/src-tauri/gen/
+# --- LOGS & DEBUG SNAPS ---
+*.log
+*.txt
+!README.md
+!LESSONS.md
+!requirements.txt
+check_errors_*.txt
+compile_error.log
+final_build_log.txt
+test_output.txt
 
-# IIP v1.0 - Active mission tracking
-.project-context/ACTIVE_MISSION.md
-
-# Database artifacts
+# --- DATABASE ---
 *.db
 *.db-shm
 *.db-wal
 
-# Temporary / Cache
+# --- OS/IDE DEBRIS ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.pytest_cache/
+.ruff_cache/
 temp/
-.cache/
 extraction_temp/
-*.ingestion.json
+*.tmp
+*.bak
+**/*.rs.bk
+Cargo.lock.bk
 
-# --- ELITE 9 WASTE MANAGEMENT ---
-# Third-party Source & Build artifacts
-**/thirdparty/
-**/mupdf/
-**/sqlcipher*/
-**/platform/win32/
-**/*.obj
-**/*.lib
-**/*.pdb
-**/*.idb
-**/*.exp
-**/*.log
-**/*.tlog
-**/*.lastbuildstate
-
-# Diagnostic logs
-*.txt
-!README.md
-!LESSONS.md
-!ANTI_GRAVITY.md
-
-# Build Artifacts
-node_modules/
-dist/
-target/
-ui/src-tauri/target/
+# --- EXCEPTIONS ---
+!libs/elite_pdf/vendor/*.lib 
