@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useTruthStore } from '../lib/useTruthStore';
 
 const SummaryPane: React.FC = () => {
-    const { summary, refreshSummary } = useTruthStore();
+    const { summary, refreshSummary, exportAudit } = useTruthStore();
 
     useEffect(() => {
         refreshSummary();
@@ -34,8 +34,22 @@ const SummaryPane: React.FC = () => {
                     <span className="text-3xl font-black tabular-nums text-yellow-500">{summary?.requires_review || 0}</span>
                 </div>
             </div>
-            <div className="text-[9px] text-gray-600 font-mono italic text-right uppercase tracking-widest">
-                VERDICT_ENGINE: CROSS_SOURCE_CONTRADICTION_ENABLED
+            <div className="text-[9px] text-gray-600 font-mono italic flex justify-between items-center uppercase tracking-widest">
+                <span>VERDICT_ENGINE: CROSS_SOURCE_CONTRADICTION_ENABLED</span>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => exportAudit('md')}
+                        className="bg-blue-900/30 border border-blue-500 text-blue-400 px-2 py-0.5 hover:bg-blue-500 hover:text-white transition-none no-round font-black"
+                    >
+                        EXPORT MD [AUDIT_CERT]
+                    </button>
+                    <button
+                        onClick={() => exportAudit('xlsx')}
+                        className="bg-purple-900/30 border border-purple-500 text-purple-400 px-2 py-0.5 hover:bg-purple-500 hover:text-white transition-none no-round font-black"
+                    >
+                        EXPORT EXCEL [WORK_TOOL]
+                    </button>
+                </div>
             </div>
         </div>
     );

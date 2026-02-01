@@ -65,6 +65,7 @@ interface TruthState {
     selectFile: (fileName: string) => Promise<void>;
     selectCell: (cellId: string) => Promise<void>;
     refreshSummary: () => Promise<void>;
+    exportAudit: (format: 'md' | 'xlsx') => Promise<void>;
     fetchEncodingCandidates: (text: string) => Promise<void>;
     applyEncodingRepair: (rowIdx: number, colIdx: number, original: string, selected: EncodingCandidate) => Promise<void>;
     clearError: () => void;
@@ -174,6 +175,22 @@ export const useTruthStore = create<TruthState>((set, get) => ({
             set({ summary });
         } catch (err) {
             console.error('Failed to fetch discrepancy summary:', err);
+        }
+    },
+
+    exportAudit: async (format: 'md' | 'xlsx') => {
+        set({ lastError: null });
+        try {
+            const result = await invoke<string>('cmd_export_audit', { format });
+            console.log(result);
+        } catch (err) {
+            set({
+                lastError: {
+                    message: `EXPORT_ERROR: ${err}`,
+                    source: 'IPC',
+                    timestamp: new Date().toISOString()
+                }
+            });
         }
     },
 

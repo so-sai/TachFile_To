@@ -13,6 +13,7 @@
 
 pub mod transformer;
 pub mod calculator;
+pub mod exporter;
 
 pub use transformer::to_dataframe;
 pub use calculator::derive_project_truth;

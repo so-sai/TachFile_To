@@ -1,8 +1,8 @@
-# TachFileTo
+# TachFileTo V1.0.0 🛡️
 
-**Engine Kiểm Tra Dữ Liệu Hồ Sơ Xây Dựng Việt Nam (Deterministic File Validation Engine)**
+**The Forensic Workstation — Engine Kiểm Tra Dữ Liệu Hồ Sơ Xây Dựng Việt Nam**
 
-*Công cụ trích xuất sự thật từ sự hỗn loạn dữ liệu — không phán đoán, không phê duyệt.*
+*Trích xuất sự thật từ sự hỗn loạn — Niêm phong dữ liệu bằng SHA-256.*
 
 ---
 

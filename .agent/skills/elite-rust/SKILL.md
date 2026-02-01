@@ -127,3 +127,12 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
   - **4-Panel Arbiter Layout**: Mandatory for data-dense forensic tools.
   - **Virtualization**: Mandatory for tables > 100 rows to maintain sub-1s interactivity. Row height fixed at 32px for precision.
   - **Forbidden Patterns**: Non-deterministic loaders (spinners), softening of rejection language ("Check again" -> "TỪ CHỐI"), and autonomous "Fix" buttons are strictly forbidden.
+  
+## Project Intelligence & Lineage Protocol (Mission 030)
+
+- **Truth Lineage**: Every aggregated metric (e.g., `total_cost`) MUST carry a `LineageMap`.
+- **Shadow Columns**: Use a `_lineage_` prefix for forensic metadata columns in Polars. These columns are for sideboat metadata only and MUST NOT participate in primary business logic (sort/filter/calc).
+- **Deterministic GlobalId**: `GlobalId` for any entity (cell, row, table) must be deterministic and hash-based: `hash(v1_id, v2_id...)`. Never use random UUIDs for forensic data.
+- **Backward Compatibility**: When adding new fields to core data contracts (e.g., `TableCell`), use `#[serde(default)]` to ensure compatibility with existing serialized mocks and project files.
+- **Polars String Handling (0.52)**: To check if a column name exists in `df.get_column_names()`, convert to a `Vec<String>` first or handle `PlSmallStr` types carefully to avoid `&str` vs `&&str` type mismatches in `.contains()`.
+- **Forensic State Persistence**: Tauri backend `ForensicState` must act as the primary cache for derived truths (like `ProjectTruth`) to ensure consistency across independent IPC commands (Drill-down, Export).
