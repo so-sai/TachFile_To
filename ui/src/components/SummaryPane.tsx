@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useTruthStore } from '../lib/useTruthStore';
+import { RefreshCw, FileDown, FileJson } from 'lucide-react';
 
 const SummaryPane: React.FC = () => {
     const { summary, refreshSummary, exportAudit } = useTruthStore();
@@ -9,45 +10,60 @@ const SummaryPane: React.FC = () => {
     }, [refreshSummary]);
 
     return (
-        <div className="bg-black text-[#00FF00] p-4 flex flex-col gap-4 border-t-4 border-white select-none no-round">
+        <div className="bg-white border-t border-slate-200 p-4 flex flex-col gap-4">
             <div className="flex justify-between items-center">
-                <h2 className="font-black text-xs tracking-widest uppercase">4. DISCREPANCY SUMMARY [TỔNG HỢP SAI LỆCH]</h2>
+                <h2 className="font-bold text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    PHÁN QUYẾT CUỐI CÙNG
+                </h2>
                 <button
                     onClick={() => refreshSummary()}
-                    className="text-[9px] bg-green-900/30 border border-[#00FF00] px-2 py-1 hover:bg-[#00FF00] hover:text-black transition-none no-round font-black"
+                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors"
                 >
-                    REFRESH_STATS [F5]
+                    <RefreshCw className="w-3 h-3" />
+                    CẬP NHẬT
                 </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-0 border border-[#00FF00]/30 no-round">
-                <div className="border-r border-[#00FF00]/30 p-3 flex flex-col items-center">
-                    <span className="text-[9px] text-gray-500 mb-1 font-black">KHỚP (CONSISTENT)</span>
-                    <span className="text-3xl font-black tabular-nums">{summary?.consistent || 0}</span>
+            <div className="grid grid-cols-3 gap-4">
+                {/* CONSISTENT */}
+                <div className="bg-green-50 rounded-lg p-3 flex flex-col items-center border border-green-100 shadow-sm">
+                    <span className="text-[10px] text-green-600 font-bold uppercase mb-1">KHỚP (HỢP LỆ)</span>
+                    <span className="text-2xl font-black text-green-700 tabular-nums">{summary?.consistent || 0}</span>
                 </div>
-                <div className="border-r border-[#00FF00]/30 p-3 flex flex-col items-center bg-red-900/10">
-                    <span className="text-[9px] text-red-500 mb-1 font-black">LỆCH (INCONSISTENT)</span>
-                    <span className="text-3xl font-black tabular-nums text-red-500">{summary?.inconsistent || 0}</span>
+
+                {/* INCONSISTENT */}
+                <div className="bg-red-50 rounded-lg p-3 flex flex-col items-center border border-red-100 shadow-sm">
+                    <span className="text-[10px] text-red-600 font-bold uppercase mb-1">SAI LỆCH (CẦN XỬ LÝ)</span>
+                    <span className="text-2xl font-black text-red-700 tabular-nums">{summary?.inconsistent || 0}</span>
                 </div>
-                <div className="p-3 flex flex-col items-center bg-yellow-900/10">
-                    <span className="text-[9px] text-yellow-500 mb-1 font-black">XÉT DUYỆT (REVIEW)</span>
-                    <span className="text-3xl font-black tabular-nums text-yellow-500">{summary?.requires_review || 0}</span>
+
+                {/* REVIEW */}
+                <div className="bg-amber-50 rounded-lg p-3 flex flex-col items-center border border-amber-100 shadow-sm">
+                    <span className="text-[10px] text-amber-600 font-bold uppercase mb-1">CẦN KIỂM TRA LẠI</span>
+                    <span className="text-2xl font-black text-amber-700 tabular-nums">{summary?.requires_review || 0}</span>
                 </div>
             </div>
-            <div className="text-[9px] text-gray-600 font-mono italic flex justify-between items-center uppercase tracking-widest">
-                <span>VERDICT_ENGINE: CROSS_SOURCE_CONTRADICTION_ENABLED</span>
+
+            <div className="flex justify-between items-center pt-2">
+                <span className="text-[10px] text-slate-400 font-mono italic">
+                    * Dữ liệu được đối chiếu đa nguồn
+                </span>
                 <div className="flex gap-2">
                     <button
                         onClick={() => exportAudit('md')}
-                        className="bg-blue-900/30 border border-blue-500 text-blue-400 px-2 py-0.5 hover:bg-blue-500 hover:text-white transition-none no-round font-black"
+                        className="bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-200 transition-colors flex items-center gap-2"
+                        title="Xuất biên bản Markdown"
                     >
-                        EXPORT MD [AUDIT_CERT]
+                        <FileJson className="w-3 h-3" />
+                        BIÊN BẢN (MD)
                     </button>
                     <button
                         onClick={() => exportAudit('xlsx')}
-                        className="bg-purple-900/30 border border-purple-500 text-purple-400 px-2 py-0.5 hover:bg-purple-500 hover:text-white transition-none no-round font-black"
+                        className="bg-green-600 text-white border border-green-700 px-3 py-1.5 rounded text-xs font-bold hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+                        title="Xuất kết quả Excel"
                     >
-                        EXPORT EXCEL [WORK_TOOL]
+                        <FileDown className="w-3 h-3" />
+                        KẾT QUẢ (EXCEL)
                     </button>
                 </div>
             </div>

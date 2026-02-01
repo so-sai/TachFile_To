@@ -3,6 +3,10 @@ name = "tachfileto-bin"
 version = "3.1.1"
 edition = "2024"
 rust-version = "1.92"
+authors = ["so-sai <https://github.com/so-sai/TachFile_To>"]
+description = "A forensic auditing tool for construction documents"
+repository = "https://github.com/so-sai/TachFile_To"
+default-run = "tachfileto-bin"
 
 [dependencies]
 tauri = { version = "2.2", features = ["devtools"] }
@@ -38,6 +42,7 @@ elite_pdf = { path = "../../libs/elite_pdf" }
 dashmap = "6.1.0"
 crossbeam-channel = "0.5.15"
 base64 = "0.22"
+tauri-plugin-fs = "2.4.5"
 
 [lib]
 name = "tachfileto_lib"

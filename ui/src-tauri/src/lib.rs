@@ -22,10 +22,13 @@ use iron_table::contract::{TableTruth, ProjectTruth};
 use iron_adapter::diagnostics::StructuredRejection;
 use std::sync::Mutex;
 
+use crate::core_contract::ui_contract::{FileStatus, FileStatusLabel};
+
 pub struct ForensicState {
     pub active_table: Mutex<Option<TableTruth>>,
     pub active_violations: Mutex<Vec<StructuredRejection>>,
     pub active_project_truth: Mutex<Option<ProjectTruth>>,
+    pub ingested_files: Mutex<Vec<FileStatus>>,
 }
 
 impl Default for ForensicState {
@@ -34,6 +37,18 @@ impl Default for ForensicState {
             active_table: Mutex::new(None),
             active_violations: Mutex::new(Vec::new()),
             active_project_truth: Mutex::new(None),
+            ingested_files: Mutex::new(vec![
+                FileStatus {
+                    name: "Tri-Conflict-Pack.pdf".to_string(),
+                    status: FileStatusLabel::Tainted,
+                    timestamp: "2026-01-31 22:50".to_string(),
+                },
+                FileStatus {
+                    name: "BM_01_Kiem_Dinh.pdf".to_string(),
+                    status: FileStatusLabel::Clean,
+                    timestamp: "2026-01-31 20:00".to_string(),
+                },
+            ]),
         }
     }
 }
@@ -45,6 +60,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ExcelAppState::default())
         .manage(ForensicState::default())

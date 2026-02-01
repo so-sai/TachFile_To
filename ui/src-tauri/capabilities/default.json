@@ -6,6 +6,12 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "core:path:default",
+    "dialog:default",
+    "fs:default",
+    "fs:read-all"
   ]
 }

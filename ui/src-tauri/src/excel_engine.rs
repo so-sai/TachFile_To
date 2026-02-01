@@ -19,6 +19,7 @@ use tauri::State;
 
 // Import Column Normalizer
 use crate::normalizer::GLOBAL_NORMALIZER;
+use crate::ForensicState;
 
 // --- 1. APP STATE (TRUTH CONTRACT) ---
 pub struct ExcelAppState {
@@ -407,27 +408,47 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
 #[tauri::command]
 pub async fn excel_load_file(
     path: String,
-    state: State<'_, ExcelAppState>,
+    excel_state: State<'_, ExcelAppState>,
+    forensic_state: State<'_, ForensicState>,
 ) -> Result<ExcelLoadResponse, String> {
+    let file_name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&path)
+        .to_string();
+
+    // 0. Handle PDF Ingestion (Bridge for V1.0.1)
+    if path.to_lowercase().ends_with(".pdf") {
+        println!("[Mission 037] PDF Ingestion Detected: {}", path);
+        
+        let mut ingested_guard = forensic_state.ingested_files.lock().map_err(|_| "Lỗi lock ingested_files")?;
+        if !ingested_guard.iter().any(|f| f.name == file_name) {
+            ingested_guard.push(crate::core_contract::ui_contract::FileStatus {
+                name: file_name.clone(),
+                status: crate::core_contract::ui_contract::FileStatusLabel::Tainted, // Temporary status
+                timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+            });
+        }
+
+        // Return a mock response for UI stability
+        return Ok(ExcelLoadResponse {
+            columns: vec!["ID".into(), "Nội dung".into(), "Trạng thái".into()],
+            data: vec![vec!["1".into(), format!("Hồ sơ PDF: {}", file_name), "ĐANG CHỜ CHIẾT XUẤT".into()]],
+            total_rows: 1,
+            sheets: vec!["PDF_VIEW".into()],
+            current_sheet: "PDF_VIEW".into(),
+        });
+    }
+
     // 1. Mở workbook để lấy danh sách sheet
     let workbook = open_workbook_auto(&path).map_err(|e| e.to_string())?;
     let sheet_names: Vec<String> = workbook.sheet_names().to_owned();
-    
-    println!("[V3.1 Sheet Selector] Available sheets: {:?}", sheet_names);
     
     // 2. Chọn sheet tốt nhất tự động
     let target_sheet = find_best_sheet(&sheet_names);
     
     // 3. Đọc và parse Excel từ sheet đã chọn
     let mut df = read_raw_excel(&path, Some(&target_sheet)).map_err(|e| e.to_string())?;
-
-    println!(
-        "[Iron Core V3.1] Loaded {} rows, {} columns from sheet '{}' in {}",
-        df.height(),
-        df.width(),
-        target_sheet,
-        path
-    );
 
     // 4. Tự động chuẩn hóa tên cột (QS Standards)
     let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
@@ -450,8 +471,20 @@ pub async fn excel_load_file(
     }
 
     // 6. Lưu vào RAM
-    let mut state_guard = state.df.lock().map_err(|_| "Lỗi lock state".to_string())?;
-    *state_guard = Some(df);
+    let mut excel_state_guard = excel_state.df.lock().map_err(|_| "Lỗi lock excel_state".to_string())?;
+    *excel_state_guard = Some(df);
+
+    // 7. Cập nhật Sổ cái (Ledger)
+    {
+        let mut ingested_guard = forensic_state.ingested_files.lock().map_err(|_| "Lỗi lock ingested_files")?;
+        if !ingested_guard.iter().any(|f| f.name == file_name) {
+            ingested_guard.push(crate::core_contract::ui_contract::FileStatus {
+                name: file_name.clone(),
+                status: crate::core_contract::ui_contract::FileStatusLabel::Clean,
+                timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+            });
+        }
+    }
 
     Ok(ExcelLoadResponse {
         columns: headers,

@@ -2,26 +2,26 @@ import React, { useEffect } from 'react';
 import { useTruthStore, FileStatusLabel } from '../lib/useTruthStore';
 
 const StatusBadge: React.FC<{ status: FileStatusLabel }> = ({ status }) => {
-    let colorClass = 'bg-gray-500';
+    let colorClass = 'bg-gray-100 text-gray-600';
     let label: string = status;
 
     switch (status) {
         case 'Clean':
-            colorClass = 'bg-green-100 text-green-700 border border-green-700';
+            colorClass = 'bg-green-100 text-green-700 font-bold';
             label = 'SẠCH';
             break;
         case 'Tainted':
-            colorClass = 'bg-yellow-100 text-yellow-700 border border-yellow-700';
-            label = 'VẤN ĐỀ';
+            colorClass = 'bg-amber-100 text-amber-700 font-bold';
+            label = 'CẢNH BÁO';
             break;
         case 'Rejected':
-            colorClass = 'bg-red-100 text-red-700 border border-red-700';
+            colorClass = 'bg-red-100 text-red-700 font-bold';
             label = 'TỪ CHỐI';
             break;
     }
 
     return (
-        <span className={`px-2 py-0.5 font-black text-[9px] uppercase tracking-tighter no-round ${colorClass}`}>
+        <span className={`px-2 py-0.5 text-[9px] rounded-full uppercase tracking-wide ${colorClass}`}>
             {label}
         </span>
     );
@@ -36,39 +36,37 @@ const FileLedger: React.FC = () => {
 
     if (isFilesLoading) {
         return (
-            <div className="flex-1 bg-gray-100 p-4 border-r-4 border-black font-black uppercase text-[10px]">
-                <span className="animate-pulse">Loading Ledger...</span>
+            <div className="flex-1 p-4 text-[10px] text-slate-400 uppercase">
+                <span className="animate-pulse">Đang tải danh sách...</span>
             </div>
         );
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-gray-100 border-r-4 border-black overflow-hidden no-round">
-            <div className="bg-black text-white p-3 font-black text-xs uppercase tracking-widest select-none no-round">
-                1. FILE LEDGER [SỔ CÁI HỒ SƠ]
-            </div>
-
-            <div className="flex-1 overflow-auto custom-scrollbar no-round">
+        <div className="flex-1 flex flex-col bg-white">
+            <div className="flex-1 overflow-auto custom-scrollbar">
                 {files.length === 0 ? (
-                    <div className="p-4 italic text-gray-400 text-xs">Không có hồ sơ.</div>
+                    <div className="p-4 italic text-slate-400 text-xs text-center">
+                        Chưa có hồ sơ nào được nạp.
+                    </div>
                 ) : (
                     files.map((file) => (
                         <div
                             key={file.name}
                             onClick={() => selectFile(file.name)}
                             className={`
-                                flex flex-col p-3 border-b border-gray-300 cursor-pointer transition-none no-round
-                                ${activeFile === file.name ? 'bg-white border-l-8 border-black' : 'hover:bg-gray-200'}
+                                flex flex-col p-3 border-b border-slate-100 cursor-pointer transition-colors
+                                ${activeFile === file.name ? 'bg-blue-50 border-l-4 border-blue-600' : 'hover:bg-slate-50 border-l-4 border-transparent'}
                             `}
                         >
                             <div className="flex justify-between items-start mb-1">
-                                <span className="font-bold text-[11px] truncate max-w-[180px] uppercase tracking-tight">
+                                <span className={`font-semibold text-xs truncate max-w-[160px] ${activeFile === file.name ? 'text-blue-900' : 'text-slate-700'}`}>
                                     {file.name}
                                 </span>
                                 <StatusBadge status={file.status} />
                             </div>
-                            <div className="text-[9px] text-gray-500 font-mono">
-                                RECEIVED: {file.timestamp}
+                            <div className="text-[9px] text-slate-400 font-mono mt-1">
+                                {file.timestamp}
                             </div>
                         </div>
                     ))

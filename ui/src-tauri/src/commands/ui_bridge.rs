@@ -7,24 +7,11 @@ use tracing::instrument;
 
 #[tauri::command]
 #[instrument(skip_all)]
-pub fn get_file_ledger() -> Vec<FileStatus> {
-    vec![
-        FileStatus {
-            name: "Tri-Conflict-Pack.pdf".to_string(),
-            status: FileStatusLabel::Tainted,
-            timestamp: "2026-01-31 22:50".to_string(),
-        },
-        FileStatus {
-            name: "BM_01_Kiem_Dinh.pdf".to_string(),
-            status: FileStatusLabel::Clean,
-            timestamp: "2026-01-31 20:00".to_string(),
-        },
-        FileStatus {
-            name: "BM_03_Thanh_Toan.pdf".to_string(),
-            status: FileStatusLabel::Rejected,
-            timestamp: "2026-01-31 20:30".to_string(),
-        },
-    ]
+pub fn get_file_ledger(state: State<'_, ForensicState>) -> Vec<FileStatus> {
+    let Ok(guard) = state.ingested_files.lock() else {
+        return vec![];
+    };
+    guard.clone()
 }
 
 #[tauri::command]
