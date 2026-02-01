@@ -32,6 +32,7 @@ iron_core = { path = "../../../iron_core" }
 iron_python_bridge = { path = "../../libs/iron_python_bridge" }
 iron_table = { path = "../../libs/iron_table" }
 iron_adapter = { path = "../../libs/iron_adapter" }
+elite_pdf = { path = "../../libs/elite_pdf" }
 dashmap = "6.1.0"
 crossbeam-channel = "0.5.15"
 base64 = "0.22"

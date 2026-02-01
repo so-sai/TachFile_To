@@ -1,5 +1,6 @@
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use thiserror::Error;
+use serde::{Serialize, Deserialize};
 use pyo3::prelude::*;
 use std::ffi::{c_void, CString};
 use std::panic;

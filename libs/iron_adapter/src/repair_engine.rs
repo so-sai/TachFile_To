@@ -3,6 +3,17 @@ use crate::diagnostics::CellRepair;
 use crate::audit_log::AuditLogger;
 use std::path::Path;
 
+/// Encoding repair mode for legacy Vietnamese fonts
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LegacyEncodingMode {
+    /// VNI-Times, VNI-Helve font family (digit suffixes)
+    Vni,
+    /// TCVN3 / .VnTime font family (extended ASCII)
+    Tcvn3,
+    /// Auto-detect (tries VNI first, then TCVN3)
+    Auto,
+}
+
 pub struct RepairEngine;
 
 impl RepairEngine {
@@ -61,6 +72,43 @@ impl RepairEngine {
         Ok(repaired_table)
     }
 
+    /// Convert legacy Vietnamese encoding to Unicode.
+    /// 
+    /// # Human-Gated Operation (LAW-07 Compliant)
+    /// This function is intended to be called ONLY from the Human Repair Loop.
+    /// The result must be reviewed by a human and applied via `apply_repairs()`.
+    /// 
+    /// # Returns
+    /// A `CellRepair` struct ready to be applied, preserving full audit trail.
+    pub fn normalize_legacy_encoding(
+        row_idx: usize,
+        col_idx: usize,
+        original_text: &str,
+        mode: LegacyEncodingMode,
+    ) -> CellRepair {
+        let normalizer = crate::encoding_normalizer::EncodingNormalizer::global();
+        
+        let normalized = match mode {
+            LegacyEncodingMode::Vni => normalizer.vni_to_unicode(original_text),
+            LegacyEncodingMode::Tcvn3 => normalizer.tcvn3_to_unicode(original_text),
+            LegacyEncodingMode::Auto => normalizer.auto_normalize(original_text),
+        };
+
+        let mode_name = match mode {
+            LegacyEncodingMode::Vni => "VNI",
+            LegacyEncodingMode::Tcvn3 => "TCVN3",
+            LegacyEncodingMode::Auto => "Auto",
+        };
+
+        CellRepair {
+            row_idx,
+            col_idx,
+            old_value: CellValue::Text(original_text.to_string()),
+            new_value: CellValue::Text(normalized),
+            reason: format!("Legacy encoding normalized ({} → Unicode)", mode_name),
+        }
+    }
+
     /// Seals the current state into a TruthSnapshot.
     /// This is the "Niêm phong" operation.
     pub fn seal_truth(
@@ -91,3 +139,44 @@ impl RepairEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_legacy_encoding_vni() {
+        let repair = RepairEngine::normalize_legacy_encoding(
+            0, 0,
+            "ha2nh chi1nh",
+            LegacyEncodingMode::Vni
+        );
+        
+        assert_eq!(repair.row_idx, 0);
+        assert_eq!(repair.col_idx, 0);
+        assert!(repair.reason.contains("VNI"));
+        
+        if let CellValue::Text(new_val) = &repair.new_value {
+            assert_eq!(new_val, "hành chính");
+        } else {
+            panic!("Expected Text value");
+        }
+    }
+
+    #[test]
+    fn test_normalize_legacy_encoding_preserves_audit_trail() {
+        let repair = RepairEngine::normalize_legacy_encoding(
+            5, 2,
+            "test",
+            LegacyEncodingMode::Auto
+        );
+        
+        // Audit trail fields are populated
+        assert_eq!(repair.row_idx, 5);
+        assert_eq!(repair.col_idx, 2);
+        assert!(matches!(repair.old_value, CellValue::Text(_)));
+        assert!(matches!(repair.new_value, CellValue::Text(_)));
+        assert!(!repair.reason.is_empty());
+    }
+}
+

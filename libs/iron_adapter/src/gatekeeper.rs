@@ -16,6 +16,10 @@ const MOJIBAKE_SCARS: &[&str] = &[
 impl EncodingGatekeeper {
     /// Scans a string for character integrity.
     /// Returns (Status, Evidence)
+    /// 
+    /// # LAW-07 Compliance
+    /// Gatekeeper DETECTS ONLY. It does NOT repair.
+    /// Repair is handled by RepairEngine in the Human Repair Loop.
     pub fn scan(input: &str) -> (EncodingStatus, Option<String>) {
         if input.is_empty() {
             return (EncodingStatus::Clean, None);
@@ -62,7 +66,13 @@ impl EncodingGatekeeper {
     pub fn is_mojibake(input: &str) -> bool {
         matches!(Self::scan(input).0, EncodingStatus::Invalid)
     }
+
+    // NOTE: try_repair() intentionally NOT implemented here.
+    // Per LAW-07 (Fail Safe): "When in doubt, BLOCK, don't FIX"
+    // Repair is Human-Gated via RepairEngine.
 }
+
+
 
 #[cfg(test)]
 mod tests {

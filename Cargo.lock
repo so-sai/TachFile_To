@@ -1235,6 +1235,7 @@ name = "elite_pdf"
 version = "0.1.0-alpha.1"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "bytes",
  "cc",
  "chrono",
@@ -2363,6 +2364,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -5598,11 +5600,13 @@ name = "tachfileto-bin"
 version = "3.1.1"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "calamine 0.32.0",
  "chrono",
  "crossbeam-channel",
  "dashmap",
  "deunicode",
+ "elite_pdf",
  "iron_adapter",
  "iron_core",
  "iron_python_bridge",

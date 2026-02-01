@@ -37,7 +37,7 @@ const EvidencePane: React.FC = () => {
                             <img
                                 src={`data:image/png;base64,${evidence.image_base64}`}
                                 alt="Evidence Crop"
-                                className="block shadow-2xl"
+                                className="block"
                                 style={{ imageRendering: 'pixelated' }}
                             />
                         </div>

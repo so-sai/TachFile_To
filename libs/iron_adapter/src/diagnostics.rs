@@ -185,7 +185,7 @@ impl DiagnosticEngine {
         
         let numeric_cols: Vec<usize> = table.schema.columns.iter()
             .enumerate()
-            .filter(|(_, col)| col.data_type == DataType::Numeric)
+            .filter(|(_, col)| col.dtype == DataType::Float64)
             .map(|(i, _)| i)
             .collect();
 
@@ -195,10 +195,10 @@ impl DiagnosticEngine {
 
             for (row_idx, row) in table.rows.iter().enumerate() {
                 if let Some(cell) = row.cells.get(col_idx) {
-                    if let CellValue::Numeric(val) = cell.value {
+                    if let CellValue::Float(val) = cell.value {
                         // Heuristic: If row contains 'Total' or 'Tổng' in any string column
                         let is_total_row = row.cells.iter().any(|c| {
-                            if let CellValue::String(s) = &c.value {
+                            if let CellValue::Text(s) = &c.value {
                                 let s_lower = s.to_lowercase();
                                 s_lower.contains("total") || s_lower.contains("tổng") || s_lower.contains("sum")
                             } else {

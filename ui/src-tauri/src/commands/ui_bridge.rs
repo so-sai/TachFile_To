@@ -3,8 +3,10 @@ use crate::ForensicState;
 use iron_table::contract::RejectionReason;
 use iron_adapter::diagnostics::{DiagnosticEngine, StructuredRejection};
 use tauri::State;
+use tracing::instrument;
 
 #[tauri::command]
+#[instrument(skip_all)]
 pub fn get_file_ledger() -> Vec<FileStatus> {
     vec![
         FileStatus {
@@ -26,14 +28,22 @@ pub fn get_file_ledger() -> Vec<FileStatus> {
 }
 
 #[tauri::command]
+#[instrument(skip(state), fields(file_id = %fileId))]
 pub fn get_table_truth(
-    file_id: String, 
+    #[allow(non_snake_case)] fileId: String, 
     state: State<'_, ForensicState>
 ) -> Vec<CellVerdict> {
+    let file_id = fileId; // Renamed for Rust convention internally
     // 1. Ingest/Swap table if necessary
     {
-        let mut table_guard = state.active_table.lock().unwrap();
-        if table_guard.is_none() || table_guard.as_ref().unwrap().table_id != file_id {
+        let Ok(mut table_guard) = state.active_table.lock() else {
+            tracing::error!("Failed to acquire table lock");
+            return vec![];
+        };
+        let should_swap = table_guard.as_ref()
+            .map(|t| t.table_id != file_id)
+            .unwrap_or(true);
+        if should_swap {
             if file_id == "Tri-Conflict-Pack.pdf" {
                 *table_guard = Some(generate_tri_conflict_table());
             } else {
@@ -42,7 +52,10 @@ pub fn get_table_truth(
         }
     }
 
-    let table_guard = state.active_table.lock().unwrap();
+    let Ok(table_guard) = state.active_table.lock() else {
+        tracing::error!("Failed to acquire table lock for reading");
+        return vec![];
+    };
     let table = match table_guard.as_ref() {
         Some(t) => t,
         None => return vec![],
@@ -51,12 +64,16 @@ pub fn get_table_truth(
     // Run real diagnostics
     let violations = DiagnosticEngine::diagnose(table);
     
-    // Store violations in state for subsequent use
-    let mut violations_guard = state.active_violations.lock().unwrap();
-    *violations_guard = violations.clone();
-
     // Map TableTruth + Violations to CellVerdicts
     let mut grid = Vec::new();
+    
+    // Store violations in state for subsequent use
+    let Ok(mut violations_guard) = state.active_violations.lock() else {
+        tracing::error!("Failed to acquire violations lock");
+        return vec![];
+    };
+    *violations_guard = violations.clone();
+
     for row in &table.rows {
         for cell in &row.cells {
             let cell_id = format!("cell_{}_{}", cell.row_idx, cell.col_idx);
@@ -93,9 +110,16 @@ pub fn get_table_truth(
 }
 
 #[tauri::command]
+#[instrument(skip(state))]
 pub fn get_discrepancy(state: State<'_, ForensicState>) -> DiscrepancySummary {
-    let violations = state.active_violations.lock().unwrap();
-    let table_guard = state.active_table.lock().unwrap();
+    let Ok(violations) = state.active_violations.lock() else {
+        tracing::error!("Failed to acquire violations lock for discrepancy");
+        return DiscrepancySummary { consistent: 0, inconsistent: 0, requires_review: 0 };
+    };
+    let Ok(table_guard) = state.active_table.lock() else {
+        tracing::error!("Failed to acquire table lock for discrepancy");
+        return DiscrepancySummary { consistent: 0, inconsistent: 0, requires_review: 0 };
+    };
     
     let total_cells = table_guard.as_ref().map(|t| t.schema.row_count * t.schema.col_count).unwrap_or(0);
     let inconsistent = violations.len();
@@ -109,11 +133,16 @@ pub fn get_discrepancy(state: State<'_, ForensicState>) -> DiscrepancySummary {
 }
 
 #[tauri::command]
+#[instrument(skip(state), fields(cell_id = %cellId))]
 pub fn get_evidence(
-    cell_id: String,
+    #[allow(non_snake_case)] cellId: String,
     state: State<'_, ForensicState>
 ) -> EvidenceData {
-    let table_guard = state.active_table.lock().unwrap();
+    let cell_id = cellId; // Renamed for Rust convention internally
+    let Ok(table_guard) = state.active_table.lock() else {
+        tracing::error!("Failed to acquire table lock for evidence");
+        return EvidenceData { image_base64: "".to_string(), metadata: "Lock error".to_string() };
+    };
     let table = match table_guard.as_ref() {
         Some(t) => t,
         None => return EvidenceData { image_base64: "".to_string(), metadata: "No table loaded".to_string() },

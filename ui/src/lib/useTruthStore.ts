@@ -75,7 +75,7 @@ export const useTruthStore = create<TruthState>((set, get) => ({
     selectFile: async (fileName: string) => {
         set({ activeFile: fileName, isTableLoading: true, cells: [], selectedCellId: null });
         try {
-            const cells = await invoke<CellVerdict[]>('get_table_truth', { file_id: fileName });
+            const cells = await invoke<CellVerdict[]>('get_table_truth', { fileId: fileName });
             set({ cells, isTableLoading: false });
         } catch (err) {
             console.error('Failed to fetch table truth:', err);
@@ -92,7 +92,7 @@ export const useTruthStore = create<TruthState>((set, get) => ({
 
         set({ isEvidenceLoading: true });
         try {
-            const evidence = await invoke<EvidenceData>('get_evidence', { cell_id: cellId });
+            const evidence = await invoke<EvidenceData>('get_evidence', { cellId: cellId });
             set((state) => ({
                 evidenceCache: { ...state.evidenceCache, [cellId]: evidence },
                 isEvidenceLoading: false
