@@ -78,7 +78,7 @@ pub async fn get_dashboard_summary(
     let total_rows = df.height();
 
     // Tính tổng tiền - FIX API POLARS 0.52
-    let total_amount = if !amount_col.is_empty() {
+    let _total_amount = if !amount_col.is_empty() {
         sum_column(&df, &amount_col)
     } else {
         0.0
@@ -108,7 +108,7 @@ pub async fn get_dashboard_summary(
 
     // 🎯 6. XÁC ĐỊNH TRẠNG THÁI (với profit margin)
     let profit_margin_percent = payment_progress.profit_percent;
-    let (status, status_reason) =
+    let (_status, _status_reason) =
         determine_project_status(diff_percent, profit_margin_percent, high_risk_count, total_rows);
 
     // 🎯 7. HÀNH ĐỘNG ĐỀ XUẤT

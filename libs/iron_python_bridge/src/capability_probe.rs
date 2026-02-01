@@ -7,7 +7,7 @@
 
 use serde::{Serialize, Deserialize};
 use std::path::Path;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum ExtractionLane {

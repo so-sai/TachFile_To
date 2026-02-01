@@ -15,7 +15,7 @@ use polars::prelude::*;
 use serde::Serialize;
 use std::sync::Mutex;
 use std::collections::HashMap;
-use tauri::State;
+use tauri::{State, Emitter};
 
 // Import Column Normalizer
 use crate::normalizer::GLOBAL_NORMALIZER;
@@ -50,16 +50,6 @@ pub struct ExcelLoadResponse {
     pub sheets: Vec<String>,
     pub current_sheet: String,
 }
-
-/// V3.1: AppState now stores current file path for sheet switching
-pub struct ExcelAppStateInternal {
-    pub df: Option<DataFrame>,
-    pub current_path: Option<String>,
-}
-
-// ============================================================
-// HELPER FUNCTIONS - ENTERPRISE GRADE
-// ============================================================
 
 /// Propagate merged cell values (fill empty cells from left/above)
 fn propagate_merged_values(rows: &mut Vec<Vec<String>>) {
@@ -264,7 +254,17 @@ fn find_best_sheet(sheet_names: &[String]) -> String {
 // --- 2. CORE ENGINE (PURE RUST) ---
 
 /// Đọc file Excel thô (Universal Support: .xls, .xlsx, .xlsb)
-pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataFrame> {
+pub fn read_raw_excel(
+    file_path: &str, 
+    sheet_name: Option<&str>,
+    app_handle: Option<&tauri::AppHandle>
+) -> Result<DataFrame> {
+    let file_name = std::path::Path::new(file_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(file_path)
+        .to_string();
+
     println!("\n🚀 IRON CORE V3.0 - EXCEL ENGINE STARTING");
     println!("   → File: {}", file_path);
     
@@ -284,23 +284,42 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
     };
 
     // 3. Convert to String matrix (handle all data types)
-    let mut rows: Vec<Vec<String>> = range
-        .rows()
-        .map(|row| {
-            row.iter()
-                .map(|cell| match cell {
-                    Data::Empty => String::new(),
-                    Data::String(s) => s.trim().to_string(),
-                    Data::Float(f) => f.to_string(),
-                    Data::Int(i) => i.to_string(),
-                    Data::Bool(b) => b.to_string(),
-                    Data::DateTime(dt) => dt.to_string(),
-                    Data::Error(e) => format!("Lỗi_{:?}", e),
-                    _ => String::new(),
-                })
-                .collect()
-        })
-        .collect();
+    let total_raw_rows = range.rows().count();
+    let mut rows: Vec<Vec<String>> = Vec::with_capacity(total_raw_rows);
+    let mut last_progress_emit = std::time::Instant::now();
+    let mut current_row_count = 0;
+
+    for row in range.rows() {
+        current_row_count += 1;
+        
+        // Convert row to String
+        let row_vec: Vec<String> = row.iter()
+            .map(|cell| match cell {
+                Data::Empty => String::new(),
+                Data::String(s) => s.trim().to_string(),
+                Data::Float(f) => f.to_string(),
+                Data::Int(i) => i.to_string(),
+                Data::Bool(b) => b.to_string(),
+                Data::DateTime(dt) => dt.to_string(),
+                Data::Error(e) => format!("Lỗi_{:?}", e),
+                _ => String::new(),
+            })
+            .collect();
+        rows.push(row_vec);
+
+        // 🛡️ PROGRESS EMISSION WITH THROTTLING
+        if let Some(handle) = app_handle {
+            // Only emit every 2% or every 200ms to avoid IPC flood
+            let progress = (current_row_count as f64 / total_raw_rows as f64) * 100.0;
+            if last_progress_emit.elapsed().as_millis() > 200 || current_row_count == total_raw_rows {
+                let _ = handle.emit("file-progress", serde_json::json!({
+                    "fileName": file_name,
+                    "progress": progress
+                }));
+                last_progress_emit = std::time::Instant::now();
+            }
+        }
+    }
 
     if rows.is_empty() {
         return Err(anyhow!("File Excel rỗng"));
@@ -311,7 +330,7 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
     // 4. Propagate merged cell values
     propagate_merged_values(&mut rows);
 
-    // ============================================================
+// ============================================================
     // SMART HEADER DETECTION V3.0 - ENTERPRISE GRADE
     // ============================================================
     let (header_row_index, keyword_score, detected_keywords) = smart_detect_header(&rows);
@@ -408,6 +427,7 @@ pub fn read_raw_excel(file_path: &str, sheet_name: Option<&str>) -> Result<DataF
 #[tauri::command]
 pub async fn excel_load_file(
     path: String,
+    app_handle: tauri::AppHandle,
     excel_state: State<'_, ExcelAppState>,
     forensic_state: State<'_, ForensicState>,
 ) -> Result<ExcelLoadResponse, String> {
@@ -427,6 +447,7 @@ pub async fn excel_load_file(
                 name: file_name.clone(),
                 status: crate::core_contract::ui_contract::FileStatusLabel::Tainted, // Temporary status
                 timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+                progress: Some(0.0), // Start with 0%
             });
         }
 
@@ -448,7 +469,7 @@ pub async fn excel_load_file(
     let target_sheet = find_best_sheet(&sheet_names);
     
     // 3. Đọc và parse Excel từ sheet đã chọn
-    let mut df = read_raw_excel(&path, Some(&target_sheet)).map_err(|e| e.to_string())?;
+    let mut df = read_raw_excel(&path, Some(&target_sheet), Some(&app_handle)).map_err(|e| e.to_string())?;
 
     // 4. Tự động chuẩn hóa tên cột (QS Standards)
     let _ = GLOBAL_NORMALIZER.normalize_dataframe_columns(&mut df);
@@ -482,6 +503,7 @@ pub async fn excel_load_file(
                 name: file_name.clone(),
                 status: crate::core_contract::ui_contract::FileStatusLabel::Clean,
                 timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+                progress: Some(100.0),
             });
         }
     }
@@ -500,6 +522,7 @@ pub async fn excel_load_file(
 pub async fn excel_select_sheet(
     path: String,
     sheet_name: String,
+    app_handle: tauri::AppHandle,
     state: State<'_, ExcelAppState>,
 ) -> Result<ExcelLoadResponse, String> {
     println!("[V3.1 Sheet Selector] User selected sheet: '{}'", sheet_name);
@@ -509,7 +532,7 @@ pub async fn excel_select_sheet(
     let sheet_names: Vec<String> = workbook.sheet_names().to_owned();
     
     // 2. Đọc đích danh sheet người dùng chọn
-    let mut df = read_raw_excel(&path, Some(&sheet_name)).map_err(|e| e.to_string())?;
+    let mut df = read_raw_excel(&path, Some(&sheet_name), Some(&app_handle)).map_err(|e| e.to_string())?;
 
     println!(
         "[Iron Core V3.1] Switched to sheet '{}': {} rows x {} columns",

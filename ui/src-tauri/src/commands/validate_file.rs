@@ -66,7 +66,7 @@ pub async fn validate_file(path: String) -> Result<ValidationResult, String> {
 /// Unified extraction command (Phase 5 - Ledger Integration)
 #[tauri::command]
 pub async fn extract_file(path: String) -> Result<serde_json::Value, String> {
-    let path_obj = Path::new(&path);
+    let _path_obj = Path::new(&path);
     
     // Phase 5: Use local UnifiedExtractor with SQLite ledger
     let ledger_db_path = std::env::current_dir()

@@ -296,7 +296,7 @@ impl<'a> EliteTextBlock<'a> {
                     })
                 }
                 1 => BlockType::Image(EliteTextBlockImage {
-                    inner: self.inner,
+                    _inner: self.inner,
                     _phantom: std::marker::PhantomData,
                 }),
                 _ => BlockType::Unknown,
@@ -326,7 +326,7 @@ impl<'a> EliteTextBlockText<'a> {
 }
 
 pub struct EliteTextBlockImage<'a> {
-    inner: *mut FzStextBlock,
+    _inner: *mut FzStextBlock,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 

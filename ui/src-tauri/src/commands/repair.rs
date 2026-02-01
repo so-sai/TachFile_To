@@ -1,6 +1,6 @@
 use iron_adapter::diagnostics::{StructuredRejection, DiagnosticEngine, CellRepair, TruthSnapshot};
 use iron_adapter::repair_engine::{RepairEngine, EncodingCandidate};
-use iron_table::contract::{TableTruth, TableRejection};
+use iron_table::contract::TableTruth;
 use crate::ForensicState;
 use tauri::State;
 
@@ -45,7 +45,29 @@ pub async fn seal_table_truth(
     repairs: Vec<CellRepair>,
     virtual_truth: TableTruth,
     actor: String,
-    verdict: String
-) -> TruthSnapshot {
-    RepairEngine::seal_truth(&table_id, &raw_input, &repairs, &virtual_truth, &actor, &verdict)
+    verdict: String,
+    state: State<'_, ForensicState>
+) -> Result<TruthSnapshot, String> {
+    let parent_hash = {
+        let guard = state.audit_ledger.lock().map_err(|e| e.to_string())?;
+        guard.iter()
+            .filter(|s| s.table_id == table_id)
+            .last()
+            .map(|s| s.hashes.virtual_truth.clone())
+    };
+
+    let snapshot = RepairEngine::seal_truth(
+        &table_id, 
+        &raw_input, 
+        &repairs, 
+        &virtual_truth, 
+        &actor, 
+        &verdict,
+        parent_hash
+    );
+
+    let mut guard = state.audit_ledger.lock().map_err(|e| e.to_string())?;
+    guard.push(snapshot.clone());
+    
+    Ok(snapshot)
 }

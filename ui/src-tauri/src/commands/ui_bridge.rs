@@ -1,7 +1,7 @@
-use crate::core_contract::ui_contract::{FileStatus, FileStatusLabel, CellVerdict, VerdictLabel, DiscrepancySummary, EvidenceData};
+use crate::core_contract::ui_contract::{FileStatus, CellVerdict, VerdictLabel, DiscrepancySummary, EvidenceData};
 use crate::ForensicState;
-use iron_table::contract::{RejectionReason, LineageEntry};
-use iron_adapter::diagnostics::{DiagnosticEngine, StructuredRejection};
+use iron_table::contract::LineageEntry;
+use iron_adapter::diagnostics::{DiagnosticEngine, StructuredRejection, TruthSnapshot};
 use tauri::State;
 use tracing::instrument;
 
@@ -197,6 +197,14 @@ pub fn get_metric_lineage(
     } else {
         vec![]
     }
+}
+
+#[tauri::command]
+pub fn get_audit_trail(table_id: String, state: State<'_, ForensicState>) -> Vec<TruthSnapshot> {
+    let Ok(guard) = state.audit_ledger.lock() else {
+        return vec![];
+    };
+    guard.iter().filter(|s| s.table_id == table_id).cloned().collect()
 }
 
 // --- MISSION 026: STRESS TEST GENERATORS ---

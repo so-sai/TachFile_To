@@ -10,12 +10,17 @@ import {
   Activity,
   Layers,
   Database,
-  FileUp
+  FileUp,
+  Github,
+  Image as ImageIcon,
+  History
 } from 'lucide-react';
 import { useTruthStore } from './lib/useTruthStore';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import EvidencePane from './components/EvidencePane';
+import HistoryPane from './components/HistoryPane';
 
 const App: React.FC = () => {
   const {
@@ -25,10 +30,13 @@ const App: React.FC = () => {
     isFilesLoading,
     isTableLoading,
     fetchFiles,
-    selectFile
+    selectFile,
+    updateFileProgress,
+    fetchAuditTrail,
   } = useTruthStore();
 
   const [metadataVisible, setMetadataVisible] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<'evidence' | 'history'>('evidence');
 
   useEffect(() => {
     fetchFiles();
@@ -40,10 +48,22 @@ const App: React.FC = () => {
       }
     });
 
+    const unlistenProgress = listen('file-progress', (event: any) => {
+      const { fileName, progress } = event.payload;
+      updateFileProgress(fileName, progress);
+    });
+
     return () => {
       unlisten.then(fn => fn());
+      unlistenProgress.then(fn => fn());
     };
   }, []);
+
+  useEffect(() => {
+    if (activeFile && rightPanelTab === 'history') {
+      fetchAuditTrail(activeFile);
+    }
+  }, [activeFile, rightPanelTab, fetchAuditTrail]);
 
   const handleOpenFile = async () => {
     const selected = await open({
@@ -59,7 +79,7 @@ const App: React.FC = () => {
     try {
       await invoke('excel_load_file', { path });
       await fetchFiles();
-      const fileName = path.split(/[\\/]/).pop() || path;
+      const fileName = path?.split(/[\\/]/).pop() || path || "Unknown File";
       await selectFile(fileName);
     } catch (err) {
       console.error("Critical Load Failure:", err);
@@ -106,8 +126,17 @@ const App: React.FC = () => {
       <aside className="bg-white border-r border-[#E5E7EB] flex flex-col z-10">
         <div className="h-14 flex items-center justify-between px-5 border-b border-[#F3F4F6] bg-slate-50/50">
           <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Sổ Cái Hồ Sơ</h2>
-          <div className="px-2 py-0.5 bg-white border border-[#E5E7EB] rounded-sm text-[10px] font-black text-slate-600 tabular-nums">
-            {files.length}
+          <div className="flex items-center gap-2">
+            <div className="px-2 py-0.5 bg-white border border-[#E5E7EB] rounded-sm text-[10px] font-black text-slate-600 tabular-nums">
+              {files.length}
+            </div>
+            <button
+              onClick={handleOpenFile}
+              className="p-1 hover:bg-white hover:shadow-sm rounded-sm transition-all text-slate-400 hover:text-blue-600 border border-transparent hover:border-slate-100"
+              title="Nạp hồ sơ mới"
+            >
+              <Plus size={14} strokeWidth={3} />
+            </button>
           </div>
         </div>
 
@@ -141,9 +170,22 @@ const App: React.FC = () => {
                       }`}>
                       {file.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-1.5 opacity-60">
-                      <Clock size={10} strokeWidth={2.5} className="text-slate-400" />
-                      <span className="text-[10px] font-bold text-slate-500 tabular-nums uppercase">{file.timestamp}</span>
+                    <div className="flex items-center justify-between mt-1.5 opacity-60">
+                      <div className="flex items-center gap-2">
+                        <Clock size={10} strokeWidth={2.5} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-500 tabular-nums uppercase">{file.timestamp}</span>
+                      </div>
+                      {file.progress !== undefined && file.progress < 100 && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 transition-all duration-300"
+                              style={{ width: `${file.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-[9px] font-black text-blue-600 tabular-nums">{Math.round(file.progress)}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -199,83 +241,113 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* HIGH-PRECISION DATA GRID */}
-            <div className="flex-1 overflow-auto bg-[#F9FAFB] p-6">
-              {isTableLoading ? (
-                <div className="space-y-4 max-w-7xl mx-auto">
-                  {Array(12).fill(0).map((_, i) => (
-                    <div key={i} className="h-10 bg-white border border-slate-100 rounded-sm animate-pulse shadow-sm" />
-                  ))}
-                </div>
-              ) : (
-                <div className="max-w-7xl mx-auto bg-white border border-[#E5E7EB] shadow-[0_4px_12px_rgba(0,0,0,0.02)] rounded-sm overflow-hidden flex flex-col min-h-full">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[13px] border-collapse bg-white">
-                      <thead className="sticky top-0 bg-[#F9FAFB] border-b border-[#E5E7EB] z-10">
-                        <tr>
-                          <th className="px-6 py-4 font-black text-slate-400 w-16 text-center border-r border-[#F3F4F6] uppercase tabular-nums">ID</th>
-                          <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-wider">Trình Diện Dữ Liệu Gốc</th>
-                          <th className="px-6 py-4 font-black text-slate-400 text-right w-40 uppercase tracking-wider">Trạng Thái</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#F3F4F6]">
-                        {cells.length === 0 ? (
+            {/* PANELS: TABLE (LEFT) & EVIDENCE/HISTORY (RIGHT) */}
+            <div className="flex-1 overflow-hidden grid grid-cols-[1fr_360px]">
+              {/* HIGH-PRECISION DATA GRID */}
+              <div className="flex-1 overflow-auto bg-[#F9FAFB] p-6 border-r border-[#E5E7EB]">
+                {isTableLoading ? (
+                  <div className="space-y-4 max-w-7xl mx-auto">
+                    {Array(12).fill(0).map((_, i) => (
+                      <div key={i} className="h-10 bg-white border border-slate-100 rounded-sm animate-pulse shadow-sm" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="max-w-7xl mx-auto bg-white border border-[#E5E7EB] shadow-[0_4px_12px_rgba(0,0,0,0.02)] rounded-sm overflow-hidden flex flex-col min-h-full">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-[13px] border-collapse bg-white">
+                        <thead className="sticky top-0 bg-[#F9FAFB] border-b border-[#E5E7EB] z-10">
                           <tr>
-                            <td colSpan={3} className="px-6 py-24 text-center">
-                              <div className="flex flex-col items-center gap-4 opacity-40">
-                                <Activity size={32} className="text-slate-300" />
-                                <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">Đang tải hạ tầng dữ liệu...</p>
-                              </div>
-                            </td>
+                            <th className="px-6 py-4 font-black text-slate-400 w-16 text-center border-r border-[#F3F4F6] uppercase tabular-nums">ID</th>
+                            <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-wider">Trình Diện Dữ Liệu Gốc</th>
+                            <th className="px-6 py-4 font-black text-slate-400 text-right w-40 uppercase tracking-wider">Trạng Thái</th>
                           </tr>
-                        ) : (
-                          cells.map((cell) => (
-                            <tr key={cell.cell_id} className="hover:bg-slate-50 transition-all group">
-                              <td className="px-6 py-3.5 text-slate-400 text-center font-bold border-r border-[#F3F4F6] tabular-nums whitespace-nowrap">
-                                {cell.cell_id.split('_').pop()}
-                              </td>
-                              <td className="px-6 py-3.5 text-slate-900 font-medium font-mono leading-relaxed bg-white/50 group-hover:bg-transparent transition-colors">
-                                {cell.value || cell.source_text}
-                              </td>
-                              <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[2px] text-[11px] font-black border uppercase shadow-sm ${cell.verdict === 'Admissible'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                  : 'bg-amber-50 text-amber-700 border-amber-100'
-                                  }`}>
-                                  {cell.verdict === 'Admissible' ? 'Hợp Lệ' : 'Nghi Vấn'}
-                                </span>
+                        </thead>
+                        <tbody className="divide-y divide-[#F3F4F6]">
+                          {cells.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="px-6 py-24 text-center">
+                                <div className="flex flex-col items-center gap-4 opacity-40">
+                                  <Activity size={32} className="text-slate-300" />
+                                  <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                                    {isTableLoading ? "ĐANG TẢI HẠ TẦNG DỮ LIỆU..." : "Không tìm thấy dữ liệu sai lệch hoặc đang chờ trích xuất."}
+                                  </p>
+                                </div>
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            cells.map((cell) => (
+                              <tr key={cell.cell_id} className="hover:bg-slate-50 transition-all group">
+                                <td className="px-6 py-3.5 text-slate-400 text-center font-bold border-r border-[#F3F4F6] tabular-nums whitespace-nowrap">
+                                  {cell.cell_id?.split('_').pop() || "N/A"}
+                                </td>
+                                <td className="px-6 py-3.5 text-slate-900 font-medium font-mono leading-relaxed bg-white/50 group-hover:bg-transparent transition-colors">
+                                  {cell.value || cell.source_text}
+                                </td>
+                                <td className="px-6 py-3.5 text-right whitespace-nowrap">
+                                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[2px] text-[11px] font-black border uppercase shadow-sm ${cell.verdict === 'Admissible'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                    : 'bg-amber-50 text-amber-700 border-amber-100'
+                                    }`}>
+                                    {cell.verdict === 'Admissible' ? 'Hợp Lệ' : 'Nghi Vấn'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* RIGHT PANEL: EVIDENCE & HISTORY */}
+              <aside className="w-[360px] flex flex-col bg-white overflow-hidden shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                <div className="h-10 flex border-b border-[#F3F4F6] bg-slate-50/50 select-none">
+                  <button
+                    onClick={() => setRightPanelTab('evidence')}
+                    className={`flex-1 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${rightPanelTab === 'evidence' ? 'bg-white text-blue-600 shadow-[inset_0_-2px_0_#2563EB]' : 'text-slate-400 hover:bg-white/50'
+                      }`}
+                  >
+                    <ImageIcon size={12} />
+                    Bằng chứng
+                  </button>
+                  <button
+                    onClick={() => setRightPanelTab('history')}
+                    className={`flex-1 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${rightPanelTab === 'history' ? 'bg-white text-amber-600 shadow-[inset_0_-2px_0_#D97706]' : 'text-slate-400 hover:bg-white/50'
+                      }`}
+                  >
+                    <History size={12} />
+                    Lịch sử
+                  </button>
                 </div>
-              )}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                  {rightPanelTab === 'evidence' ? <EvidencePane /> : <HistoryPane />}
+                </div>
+              </aside>
             </div>
           </div>
         )}
       </main>
 
       {/* 🚀 ACTION BAR (MISSION CONTROL - 80px) */}
-      <footer className="h-10 border-t border-gray-100 bg-[#F9FAFB]/50 backdrop-blur-md flex items-center justify-between px-6">
+      <footer className="h-10 border-t border-gray-100 bg-[#F9FAFB] flex items-center justify-between px-6 select-none">
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-bold tracking-tight text-gray-900 uppercase">
             © 2026 SO-SAI
           </span>
           <span className="text-gray-300">|</span>
-          <a
-            href="https://github.com/so-sai"
-            className="text-[9px] font-mono text-gray-500 hover:text-blue-600 transition-colors uppercase tracking-widest"
-          >
-            github.com/so-sai
-          </a>
+          <div className="flex items-center gap-1.5 opacity-60">
+            <Github size={12} className="text-gray-400" />
+            <span className="text-[9px] font-mono text-gray-400 tracking-widest uppercase">
+              GITHUB.COM/SO-SAI
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[10px] font-medium text-gray-500 uppercase">System Ready</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+            <span className="text-[9px] font-bold text-emerald-600 uppercase">System Ready</span>
           </div>
         </div>
       </footer>

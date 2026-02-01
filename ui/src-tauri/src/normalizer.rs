@@ -329,7 +329,7 @@ impl TerminologyNormalizer {
         &self,
         df: &mut polars::prelude::DataFrame,
     ) -> Result<Vec<ColumnNormalizationResult>, String> {
-        use polars::prelude::*;
+        // use polars::prelude::*;
 
         let original_cols: Vec<String> = df
             .get_column_names()
@@ -361,8 +361,7 @@ impl TerminologyNormalizer {
     }
 }
 
-/// Tauri command - Normalize column names
-#[command]
+/* #[command]
 pub fn cmd_normalize_columns(
     column_names: Vec<String>,
 ) -> Result<Vec<ColumnNormalizationResult>, String> {
@@ -371,7 +370,7 @@ pub fn cmd_normalize_columns(
         .map(|col| GLOBAL_NORMALIZER.normalize_column_name(col))
         .collect();
     Ok(result)
-}
+} */
 
 // ============================================================================
 // 🧪 TEST SUITE - COLUMN NORMALIZER

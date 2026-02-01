@@ -52,10 +52,12 @@
 - **Scale:** Performance target 100,000+ rows @ 60fps.
 - **Labels:** HỢP LỆ (ADMISSIBLE) / KHÔNG HỢP LỆ (INADMISSIBLE).
 
-### Panel 3: Evidence Pane [BẰNG CHỨNG THỊ GIÁC]
-- **Requirement:** Zero-latency crop display.
-- **Source:** Direct 72DPI crop from PDF/Excel original file.
-- **Metadata:** Show page number, bounding box, and extraction confidence.
+### Panel 3: Forensic Inspector [GIÁM ĐỊNH CHI TIẾT]
+- **Dual-Mode System**:
+    - **Mode A: Evidence (Bằng chứng)**: Crop display from source PDF/Excel.
+    - **Mode B: History (Lịch sử)**: Chronological Ledger of Corrections.
+- **Requirement:** Zero-latency switching between modes.
+- **Visual Marker:** Amber (#D97706) for manual correction highlights.
 
 ### Panel 4: Discrepancy Summary [TỔNG HỢP SAI LỆCH]
 - **Ticker:** Consistent vs Inconsistent vs Review counts.
@@ -78,6 +80,16 @@
 - `get_table_truth(file_id)`: Row-by-row truth verdicts.
 - `get_evidence(cell_id)`: Source visual proofs.
 - `get_discrepancy`: Session statistics.
+- `get_audit_trail(table_id)`: Chronological list of repairs.
+- `seal_table_truth`: Persists current repair state and generates hash signature.
+
+---
+
+## 6. LEDGER OF CORRECTIONS (THE AUDIT TRAIL)
+- **Principle:** All manual interventions MUST be logged.
+- **Structure:** `Who` (System ID) + `When` (ISO-8601) + `What` (Old -> New) + `Why` (Reason Code).
+- **Integrity:** Every batch of corrections is signed with a SHA-256 hash chaining to the previous snapshot.
+- **Immutability:** Once a session is "Sealed", the audit trail is frozen.
 
 ---
 

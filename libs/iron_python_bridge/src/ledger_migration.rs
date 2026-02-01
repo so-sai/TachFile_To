@@ -4,7 +4,7 @@
 //! Implements idempotent INSERT OR REPLACE pattern.
 
 use anyhow::{Context, Result as AnyResult};
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::Path;

@@ -9,6 +9,7 @@ export interface FileStatus {
     name: string;
     status: FileStatusLabel;
     timestamp: string;
+    progress?: number; // 0-100
 }
 
 export interface CellVerdict {
@@ -37,6 +38,20 @@ export interface DiscrepancySummary {
     requires_review: number;
 }
 
+export interface TruthSnapshot {
+    table_id: string;
+    hashes: {
+        raw_input: string;
+        correction_batch: string;
+        virtual_truth: string;
+    };
+    repairs: any[];
+    audited_by: string;
+    verdict: string;
+    timestamp: string;
+    parent_hash?: string;
+}
+
 interface TruthState {
     // Data
     files: FileStatus[];
@@ -59,6 +74,8 @@ interface TruthState {
     isFilesLoading: boolean;
     isTableLoading: boolean;
     isEvidenceLoading: boolean;
+    auditTrail: TruthSnapshot[];
+    isAuditLoading: boolean;
 
     // Actions
     fetchFiles: () => Promise<void>;
@@ -68,6 +85,8 @@ interface TruthState {
     exportAudit: (format: 'md' | 'xlsx') => Promise<void>;
     fetchEncodingCandidates: (text: string) => Promise<void>;
     applyEncodingRepair: (rowIdx: number, colIdx: number, original: string, selected: EncodingCandidate) => Promise<void>;
+    updateFileProgress: (fileName: string, progress: number) => void;
+    fetchAuditTrail: (tableId: string) => Promise<void>;
     clearError: () => void;
 }
 
@@ -87,6 +106,8 @@ export const useTruthStore = create<TruthState>((set, get) => ({
     isFilesLoading: false,
     isTableLoading: false,
     isEvidenceLoading: false,
+    auditTrail: [],
+    isAuditLoading: false,
 
     clearError: () => set({ lastError: null }),
 
@@ -201,6 +222,31 @@ export const useTruthStore = create<TruthState>((set, get) => ({
             set({ encodingCandidates: candidates });
         } catch (err) {
             console.error('Failed to fetch encoding candidates:', err);
+        }
+    },
+
+    updateFileProgress: (fileName: string, progress: number) => {
+        set((state) => ({
+            files: state.files.map(f =>
+                f.name === fileName ? { ...f, progress } : f
+            )
+        }));
+    },
+
+    fetchAuditTrail: async (tableId: string) => {
+        set({ isAuditLoading: true });
+        try {
+            const auditTrail = await invoke<TruthSnapshot[]>('get_audit_trail', { tableId });
+            set({ auditTrail, isAuditLoading: false });
+        } catch (error: any) {
+            set({
+                lastError: {
+                    message: error.toString(),
+                    source: 'IPC',
+                    timestamp: new Date().toISOString()
+                },
+                isAuditLoading: false
+            });
         }
     },
 

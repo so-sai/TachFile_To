@@ -4,12 +4,11 @@
 //! Implements async extraction with proper error handling.
 
 use anyhow::{Context, Result as AnyResult};
-use crate::models::{ExtractionProduct, ExtractionMetrics};
+use crate::models::ExtractionProduct;
 use crate::ledger_migration::{LedgerManager, LedgerEntry};
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+// use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
 use chrono::Utc;
 use tokio::fs;
@@ -105,7 +104,7 @@ impl UnifiedExtractor {
 
         // 5. Store in ledger
         {
-            let mut ledger = self.ledger.lock().unwrap();
+            let ledger = self.ledger.lock().unwrap();
             ledger.insert_entry(&ledger_entry)?;
         }
 
@@ -178,11 +177,11 @@ impl UnifiedExtractor {
     }
 
     /// Extract using Python bridge (simulated - fallback)
-    async fn extract_with_python(_file_path: &str) -> AnyResult<ExtractionProduct> {
+    /* async fn extract_with_python(_file_path: &str) -> AnyResult<ExtractionProduct> {
         // ... kept for compatibility with existing tests if needed, 
         // but we favor extract_with_process_isolation
         unimplemented!("Use extract_with_process_isolation instead")
-    }
+    } */
 
     /// Get ledger statistics
     pub async fn get_ledger_stats(&self) -> AnyResult<crate::ledger_migration::LedgerStats> {

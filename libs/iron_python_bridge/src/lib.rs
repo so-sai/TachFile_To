@@ -23,7 +23,7 @@ pub mod process_isolation;
 
 use anyhow::{Context, Result as AnyResult};
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyTuple};
+use pyo3::types::PyList;
 use std::sync::Once;
 use std::path::PathBuf;
 use crate::models::ExtractionProduct;

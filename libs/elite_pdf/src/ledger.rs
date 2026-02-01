@@ -5,11 +5,11 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 
 pub struct IngestionRecord {
-    pub file_hash: String,
-    pub file_path: String,
+    pub _file_hash: String,
+    pub _file_path: String,
     pub page_count: i32,
     pub status: String,
-    pub processed_at: String,
+    pub _processed_at: String,
 }
 
 const DB_PATH: &str = "ingestion.db";
@@ -59,11 +59,11 @@ pub fn check_file_processed(hash: &str) -> Result<Option<IngestionRecord>> {
 
     if let Some(row) = rows.next()? {
         Ok(Some(IngestionRecord {
-            file_hash: row.get(0)?,
-            file_path: row.get(1)?,
+            _file_hash: row.get(0)?,
+            _file_path: row.get(1)?,
             page_count: row.get(2)?,
             status: row.get(3)?,
-            processed_at: row.get(4)?,
+            _processed_at: row.get(4)?,
         }))
     } else {
         Ok(None)

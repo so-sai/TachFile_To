@@ -15,7 +15,7 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    pub fn new(command: &str, args: &[&str]) -> Self {
+    pub fn new(_command: &str, args: &[&str]) -> Self {
         Self {
             child: Arc::new(Mutex::new(None)),
             cmd_args: args.iter().map(|s| s.to_string()).collect(),

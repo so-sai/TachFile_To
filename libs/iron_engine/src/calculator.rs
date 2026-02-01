@@ -8,8 +8,7 @@
 
 use polars::prelude::*;
 use iron_table::{
-    ProjectTruth, ProjectStatus, Financials, DeviationSummary,
-    RiskItem, ActionItem, SystemMetrics
+    ProjectTruth, ProjectStatus, Financials, DeviationSummary, SystemMetrics
 };
 use crate::{Result, EngineError};
 
@@ -27,7 +26,7 @@ use crate::{Result, EngineError};
 /// 
 /// **Determinism:** Timestamp must be provided by caller to ensure idempotence.
 pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<ProjectTruth> {
-    use iron_table::LineageEntry;
+    
     use std::collections::HashMap;
 
     let financials = calculate_financials(df)?;

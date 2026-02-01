@@ -16,6 +16,7 @@ pub struct FileStatus {
     pub name: String,
     pub status: FileStatusLabel,
     pub timestamp: String,
+    pub progress: Option<f64>, // 0.0 to 100.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +30,7 @@ pub enum FileStatusLabel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CellVerdict {
+    #[serde(rename = "cell_id")]
     pub cell_id: String,
     pub value: Option<String>,
     pub verdict: VerdictLabel,

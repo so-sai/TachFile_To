@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use iron_table::contract::{TableTruth, TableRejection, CellValue};
 use crate::diagnostics::CellRepair;
-use crate::audit_log::AuditLogger;
 use std::path::Path;
 
 /// Encoding repair mode for legacy Vietnamese fonts
@@ -32,7 +31,7 @@ impl RepairEngine {
     pub fn apply_repairs(
         table: &TableTruth, 
         repairs: Vec<CellRepair>, 
-        log_path: Option<&Path>
+        _log_path: Option<&Path>
     ) -> Result<TableTruth, TableRejection> {
         let mut repaired_table = table.clone();
         
@@ -44,20 +43,19 @@ impl RepairEngine {
             let cell = row.cells.iter_mut().find(|c| c.col_idx == repair.col_idx)
                 .ok_or_else(|| TableRejection::ContractViolation(format!("Repair targets non-existent col {} in row {}", repair.col_idx, repair.row_idx)))?;
             
-            // Audit the repair before applying
-            if let Some(path) = log_path {
-                let details = serde_json::json!({
-                    "row": repair.row_idx,
-                    "col": repair.col_idx,
-                    "old": repair.old_value,
-                    "new": repair.new_value,
-                    "reason": repair.reason
-                });
-                let _ = AuditLogger::log("REPAIR", &table.table_id, details, path);
+            // 🛡️ POPULATE AUDIT FIELDS
+            let mut repair_clone = repair.clone();
+            repair_clone.timestamp = chrono::Local::now().to_rfc3339();
+            repair_clone.actor = std::env::var("USERNAME").or_else(|_| std::env::var("USER")).unwrap_or_else(|_| "UNKNOWN_ACTOR".into());
+            if repair_clone.reason_code.is_empty() {
+                repair_clone.reason_code = "MANUAL_OVERRIDE".into();
             }
+            
+            // Generate individual repair hash
+            repair_clone.signature_hash = crate::diagnostics::TruthSnapshot::calculate_hash(&repair_clone);
 
             // Apply the new value
-            cell.value = repair.new_value.clone();
+            cell.value = repair_clone.new_value.clone();
             
             // Mark as manually repaired
             cell.confidence = 1.0; 
@@ -118,6 +116,10 @@ impl RepairEngine {
             old_value: CellValue::Text(original_text.to_string()),
             new_value: CellValue::Text(normalized),
             reason: format!("Legacy encoding normalized ({} → Unicode)", mode_name),
+            reason_code: "ENCODING_REPAIR".into(),
+            timestamp: chrono::Local::now().to_rfc3339(),
+            actor: std::env::var("USERNAME").or_else(|_| std::env::var("USER")).unwrap_or_else(|_| "SYSTEM".into()),
+            signature_hash: String::new(), // To be generated on application
         }
     }
 
@@ -129,7 +131,8 @@ impl RepairEngine {
         repairs: &Vec<CellRepair>, 
         virtual_truth: &TableTruth,
         actor: &str,
-        verdict: &str
+        verdict: &str,
+        parent_hash: Option<String>
     ) -> crate::diagnostics::TruthSnapshot {
         use chrono::Local;
         use crate::diagnostics::{TruthSnapshot, HashSeal};
@@ -145,9 +148,11 @@ impl RepairEngine {
                 correction_batch: repair_hash,
                 virtual_truth: truth_hash,
             },
+            repairs: repairs.clone(),
             audited_by: actor.to_string(),
             verdict: verdict.to_string(),
             timestamp: Local::now().to_rfc3339(),
+            parent_hash,
         }
     }
 

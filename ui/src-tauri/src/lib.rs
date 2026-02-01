@@ -19,7 +19,7 @@ mod telemetry_state;
 
 use excel_engine::ExcelAppState;
 use iron_table::contract::{TableTruth, ProjectTruth};
-use iron_adapter::diagnostics::StructuredRejection;
+use iron_adapter::diagnostics::{StructuredRejection, TruthSnapshot};
 use std::sync::Mutex;
 
 use crate::core_contract::ui_contract::{FileStatus, FileStatusLabel};
@@ -29,6 +29,7 @@ pub struct ForensicState {
     pub active_violations: Mutex<Vec<StructuredRejection>>,
     pub active_project_truth: Mutex<Option<ProjectTruth>>,
     pub ingested_files: Mutex<Vec<FileStatus>>,
+    pub audit_ledger: Mutex<Vec<TruthSnapshot>>,
 }
 
 impl Default for ForensicState {
@@ -42,19 +43,21 @@ impl Default for ForensicState {
                     name: "Tri-Conflict-Pack.pdf".to_string(),
                     status: FileStatusLabel::Tainted,
                     timestamp: "2026-01-31 22:50".to_string(),
+                    progress: Some(100.0),
                 },
                 FileStatus {
                     name: "BM_01_Kiem_Dinh.pdf".to_string(),
                     status: FileStatusLabel::Clean,
                     timestamp: "2026-01-31 20:00".to_string(),
+                    progress: Some(100.0),
                 },
             ]),
+            audit_ledger: Mutex::new(Vec::new()),
         }
     }
 }
 
 use commands::validate_file;
-use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -92,6 +95,7 @@ pub fn run() {
             commands::ui_bridge::get_evidence,
             commands::ui_bridge::get_discrepancy,
             commands::ui_bridge::get_metric_lineage,
+            commands::ui_bridge::get_audit_trail,
             commands::export::cmd_export_audit
         ])
         .run(tauri::generate_context!())

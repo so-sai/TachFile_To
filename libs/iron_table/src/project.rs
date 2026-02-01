@@ -1,4 +1,4 @@
-use crate::contract::{TableTruth, CellValue, TableRejection};
+use crate::contract::{TableTruth, CellValue};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use std::collections::HashMap;

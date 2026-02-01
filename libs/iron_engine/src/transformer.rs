@@ -7,7 +7,7 @@
 //! - Reject on schema mismatch
 
 use polars::prelude::*;
-use iron_table::{TableTruth, TableSchema, ColumnDef, DataType as IronDataType};
+use iron_table::{TableTruth, ColumnDef, DataType as IronDataType};
 use crate::{Result, EngineError};
 
 /// Convert a validated TableTruth into a Polars DataFrame.

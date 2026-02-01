@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Metadata for an individual page, mapping 1-1 with Python `PageMetadata`
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

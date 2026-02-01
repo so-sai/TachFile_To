@@ -7,7 +7,6 @@
 use polars::prelude::*;
 use rust_xlsxwriter::{Workbook, Format, FormatBorder, Color, XlsxError};
 use iron_table::{ProjectTruth, TableTruth, ProjectStatus, EncodingStatus};
-use crate::Result;
 
 /// Markdown Exporter
 pub struct MarkdownExporter;

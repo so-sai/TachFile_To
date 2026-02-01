@@ -160,17 +160,17 @@ unsafe extern "C" {
         max_store: usize,
         version: *const i8,
     ) -> *mut fz_context;
-    fn fz_keep_context(ctx: *mut fz_context) -> *mut fz_context;
+    // fn fz_keep_context(ctx: *mut fz_context) -> *mut fz_context;
     fn fz_drop_context(ctx: *mut fz_context);
     fn fz_register_document_handlers(ctx: *mut fz_context);
     fn fz_open_document(ctx: *mut fz_context, filename: *const i8) -> *mut fz_document;
-    fn fz_keep_document(ctx: *mut fz_context, doc: *mut fz_document) -> *mut fz_document;
+    // fn fz_keep_document(ctx: *mut fz_context, doc: *mut fz_document) -> *mut fz_document;
     fn fz_drop_document(ctx: *mut fz_context, doc: *mut fz_document);
     fn fz_count_pages(ctx: *mut fz_context, doc: *mut fz_document) -> i32;
 
     // Page & Pixmap API
     fn fz_load_page(ctx: *mut fz_context, doc: *mut fz_document, number: i32) -> *mut fz_page;
-    fn fz_keep_page(ctx: *mut fz_context, page: *mut fz_page) -> *mut fz_page;
+    // fn fz_keep_page(ctx: *mut fz_context, page: *mut fz_page) -> *mut fz_page;
     fn fz_drop_page(ctx: *mut fz_context, page: *mut fz_page);
     fn fz_new_pixmap_from_page(
         ctx: *mut fz_context,
@@ -179,13 +179,13 @@ unsafe extern "C" {
         cs: *mut fz_colorspace,
         alpha: i32,
     ) -> *mut fz_pixmap;
-    fn fz_new_pixmap_from_page_contents(
-        ctx: *mut fz_context,
-        page: *mut fz_page,
-        ctm: fz_matrix,
-        cs: *mut fz_colorspace,
-        alpha: i32,
-    ) -> *mut fz_pixmap;
+    /* fn fz_new_pixmap_from_page_contents(
+         ctx: *mut fz_context,
+         page: *mut fz_page,
+         ctm: fz_matrix,
+         cs: *mut fz_colorspace,
+         alpha: i32,
+     ) -> *mut fz_pixmap; */
     fn fz_drop_pixmap(ctx: *mut fz_context, pix: *mut fz_pixmap);
     fn fz_save_pixmap_as_png(ctx: *mut fz_context, pix: *mut fz_pixmap, filename: *const i8);
 }
@@ -195,8 +195,8 @@ unsafe extern "C" {
 // =========================================================================
 
 pub struct ElitePage {
-    ctx: crate::EliteContext,
-    inner: *mut fz_page,
+    pub(crate) ctx: crate::EliteContext,
+    pub(crate) inner: *mut fz_page,
 }
 
 impl ElitePage {
@@ -225,7 +225,7 @@ impl ElitePage {
         text_page.to_markdown()
     }
 
-    pub fn get_crop_base64(&self, x0: f32, y0: f32, x1: f32, y1: f32, zoom: f32) -> Result<String, String> {
+    pub fn get_crop_base64(&self, x0: f32, y0: f32, _x1: f32, _y1: f32, zoom: f32) -> Result<String, String> {
         use base64::{Engine as _, engine::general_purpose};
         let ctx = self.ctx.clone();
         let page_ptr = self.inner;

@@ -83,6 +83,10 @@ pub struct CellRepair {
     pub old_value: CellValue,
     pub new_value: CellValue,
     pub reason: String,
+    pub reason_code: String,        // E.g., "ENCODING_REPAIR", "MANUAL_OVERRIDE"
+    pub timestamp: String,          // ISO 8601
+    pub actor: String,              // System Username
+    pub signature_hash: String,     // Hash of this specific repair
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -96,9 +100,11 @@ pub struct HashSeal {
 pub struct TruthSnapshot {
     pub table_id: String,
     pub hashes: HashSeal,
+    pub repairs: Vec<CellRepair>,   // The batch of repairs in this snapshot
     pub audited_by: String,
     pub verdict: String,
     pub timestamp: String,
+    pub parent_hash: Option<String>, // For chaining history
 }
 
 impl TruthSnapshot {
