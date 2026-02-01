@@ -61,9 +61,9 @@ fn test_025_02_user_fixes_sum_mismatch() {
     // ACTION: User fixes detail item (40 -> 50).
     // EXPECTATION: Project validation ACCEPTS.
 
-    use iron_table::project::{ProjectTruth, ConsistencyRule, TableRef, ColumnRef, CellRef};
+    use iron_table::project::{ProjectGraph, ConsistencyRule, TableRef, ColumnRef, CellRef};
 
-    let mut project = ProjectTruth::new("Mission025".to_string());
+    let mut project = ProjectGraph::new("Mission025".to_string());
     
     // Ingest summary (Total = 100) and detail (Sum = 90)
     let sum_path = fixture("clean_summary.json");

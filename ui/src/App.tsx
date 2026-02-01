@@ -1,12 +1,17 @@
 import { useEffect } from 'react';
+import { useTruthStore } from './lib/useTruthStore';
 
 import FileLedger from './components/FileLedger';
 import TableTruthView from './components/TableTruthView';
 import EvidencePane from './components/EvidencePane';
 import SummaryPane from './components/SummaryPane';
 import AppendixA from './components/AppendixA';
+import ErrorBoundary from './components/ErrorBoundary';
+import PerfMonitor from './components/PerfMonitor';
 
 function App() {
+  const { lastError, clearError } = useTruthStore();
+
   // MISSION 026: Keyboard Shortcuts (Ctrl+F, ESC)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -26,7 +31,7 @@ function App() {
       {/* 🛡️ BLOOMBERG HEADER: APP TITLE & ENGINE STATUS */}
       <header className="h-[48px] flex-shrink-0 border-b-2 border-black bg-black px-6 flex items-center justify-between select-none no-round">
         <div className="flex items-center gap-4">
-          <h1 className="font-black text-xl tracking-tighter uppercase italic text-white">
+          <h1 className="font-black text-xl tracking-tighter uppercase italic text-white" onClick={() => window.location.reload()}>
             TACHFILE_TO <span className="text-[#00FF00] not-italic">VN-CORE</span>
           </h1>
           <div className="bg-[#00FF00] text-black px-2 py-0.5 font-black text-[9px] tracking-widest uppercase no-round border border-black">
@@ -34,12 +39,22 @@ function App() {
           </div>
         </div>
 
+        {/* MISSION 028: FORENSIC ERROR BAR */}
+        {lastError && (
+          <div className="flex-1 mx-8 bg-red-600 text-white px-4 py-1 flex items-center justify-between animate-pulse no-round">
+            <span className="font-black text-[10px] uppercase truncate">
+              [!] {lastError.message}
+            </span>
+            <button onClick={clearError} className="ml-4 border border-white px-2 font-black text-[10px]">ACK</button>
+          </div>
+        )}
+
         <div className="flex items-center gap-6 font-black text-[9px] uppercase tracking-widest text-[#444]">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-[#00FF00] animate-pulse"></span>
             <span className="text-[#00FF00]">CORE_SYNC: ACTIVE</span>
           </div>
-          <div>EST: 2026-01-31</div>
+          <div>EST: 2026-02-01</div>
           <div className="text-white border-l border-white/20 pl-4">INSPECTION_MODE</div>
         </div>
       </header>
@@ -49,7 +64,9 @@ function App() {
 
         {/* PANEL 1: FILE LEDGER (LEFT SIDEBAR) */}
         <aside className="w-[280px] flex-shrink-0 flex flex-col no-round">
-          <FileLedger />
+          <ErrorBoundary panelName="FILE_LEDGER">
+            <FileLedger />
+          </ErrorBoundary>
         </aside>
 
         {/* CENTER COMPARTMENT: PANEL 2 & PANEL 3 */}
@@ -57,12 +74,18 @@ function App() {
 
           {/* HORIZONTAL SPLIT: TABLE TRUTH (TOP) & EVIDENCE (BOTTOM) */}
           <div className="flex-1 flex flex-col min-h-0 no-round">
-            <TableTruthView />
-            <EvidencePane />
+            <ErrorBoundary panelName="TABLE_TRUTH">
+              <TableTruthView />
+            </ErrorBoundary>
+            <ErrorBoundary panelName="EVIDENCE_PANE">
+              <EvidencePane />
+            </ErrorBoundary>
           </div>
 
           {/* PANEL 4: DISCREPANCY SUMMARY (BOTTOM BAR) */}
-          <SummaryPane />
+          <ErrorBoundary panelName="SUMMARY_PANE">
+            <SummaryPane />
+          </ErrorBoundary>
 
         </section>
 
@@ -70,6 +93,7 @@ function App() {
 
       {/* APPENDIX A: LEGAL NOTICE & DEFINITIONS */}
       <AppendixA />
+      <PerfMonitor />
 
       {/* STATUS BAR (BLOOMBERG STYLE) */}
       <footer className="h-[20px] bg-black text-[#666] px-4 flex items-center justify-between font-black text-[8px] uppercase tracking-[0.2em] select-none border-t border-[#222] no-round">

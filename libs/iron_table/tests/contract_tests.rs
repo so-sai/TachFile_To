@@ -53,6 +53,7 @@ fn test_reject_low_confidence() {
             row_idx: 0,
             cells: vec![
                 TableCell {
+                    global_id: "test_0_0".to_string(),
                     row_idx: 0, col_idx: 0, value: CellValue::Float(1.0),
                     bbox: BoundingBox { x: 0.0, y: 0.0, width: 10.0, height: 10.0, page: 1 },
                     confidence: 0.9, source_text: "1.0".to_string(),
@@ -64,6 +65,7 @@ fn test_reject_low_confidence() {
             row_idx: 1,
             cells: vec![
                 TableCell {
+                    global_id: "test_1_0".to_string(),
                     row_idx: 1, col_idx: 0, value: CellValue::Float(1.0),
                     bbox: BoundingBox { x: 0.0, y: 10.0, width: 10.0, height: 10.0, page: 1 },
                     confidence: 0.6, // Low confidence trigger

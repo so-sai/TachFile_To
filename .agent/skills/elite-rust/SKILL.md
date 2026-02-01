@@ -21,6 +21,8 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
 
 ## Interoperability (Tauri/TS)
 - **Data Contract**: All event payloads between Rust and TypeScript MUST use `camelCase`. Use `#[serde(rename_all = "camelCase")]` on structs.
+- **Glass Panel Philosophy**: UI is strictly a "Glass Panel". Zero business logic, zero state inferencing, and zero data modification allowed in the Frontend. UI ONLY renders what the Core (Rust) dictates.
+- **IPC Safety**: Use `#[tauri::arg(rename = "camelCase")]` or `#[allow(non_snake_case)]` to reconcile Rust's `snake_case` with Frontend's `camelCase` without breaking convention.
 
 ## Observability
 - **Traceability**: Every result-bearing function must be traced or logged using the `tracing` crate. Use `#[tracing::instrument]` on core logic.
@@ -111,3 +113,17 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
     - Row ejection is only allowed for 100% empty rows with no semantic significance (e.g., header rows, spacer rows).
 - **SIMD Usage**: Prefer standard library optimizations (Regex, Arrow) for SIMD. Avoid manual intrinsics unless explicitly authorized for a specific Mission.
 - **Syntactic Cleaning Only**: Janitor cleans characters and formats (1.250,50 -> 1250.5). It NEVER performs semantic conversion (m3 -> liters). Parse failures are left "as-is" to be rejected by Truth.
+
+## Iron Truth Contract & Clean Hands Doctrine (Mission 024-027)
+
+- **LAW-07 (Fail Safe & Human-Gated)**: Systems MUST detect and reject anomalies (Mojibake, structural rot) but MUST NEVER attempt autonomous repair. All repairs are human-gated.
+- **Clean Hands Doctrine**: The Truth Engine (`TableTruth`) must remain pure. It only validates data. Any repair logic resides in the `Adapter/Engine` layer and results must be re-submitted for validation. "The Judge does not write the Law, and the Janitor does not argue with the Truth."
+- **Iron Truth Contract V1.0**:
+  - `TableTruth` is the singular source of truth for structural validity.
+  - `ProjectTruth` is the derived authority for cross-source reconciliation.
+  - Any conflict between Reality and Truth results in `Rejected` status by default.
+- **Global Singletons**: Use `std::sync::OnceLock` for global, thread-safe singletons (e.g., `EncodingNormalizer`). Avoid `lazy_static` unless complex macro execution is required.
+- **UI Architecture**:
+  - **4-Panel Arbiter Layout**: Mandatory for data-dense forensic tools.
+  - **Virtualization**: Mandatory for tables > 100 rows to maintain sub-1s interactivity. Row height fixed at 32px for precision.
+  - **Forbidden Patterns**: Non-deterministic loaders (spinners), softening of rejection language ("Check again" -> "TỪ CHỐI"), and autonomous "Fix" buttons are strictly forbidden.

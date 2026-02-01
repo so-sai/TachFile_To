@@ -5609,6 +5609,7 @@ dependencies = [
  "elite_pdf",
  "iron_adapter",
  "iron_core",
+ "iron_engine",
  "iron_python_bridge",
  "iron_table",
  "lazy_static",

@@ -59,8 +59,12 @@ pub struct TableRow {
     pub cells: Vec<TableCell>,
 }
 
+pub type GlobalId = String;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TableCell {
+    #[serde(default)]
+    pub global_id: GlobalId,        // Unique ID across the project: {table_id}_{row}_{col}
     pub row_idx: usize,
     pub col_idx: usize,
     pub value: CellValue,
@@ -69,6 +73,14 @@ pub struct TableCell {
     pub source_text: String,        // Raw OCR text before normalization
     pub encoding_status: EncodingStatus,
     pub encoding_evidence: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LineageEntry {
+    pub source_table: String,
+    pub row_idx: usize,
+    pub col_idx: usize,
+    pub contribution: f64,          // The value contributed to the aggregate
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -225,6 +237,9 @@ pub struct ProjectTruth {
     pub top_risks: Vec<RiskItem>,
     pub pending_actions: Vec<ActionItem>,
     pub metrics: SystemMetrics,
+    
+    /// Map of metric IDs (e.g., "total_cost") to their contributing sources.
+    pub lineage: std::collections::HashMap<String, Vec<LineageEntry>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

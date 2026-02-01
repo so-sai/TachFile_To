@@ -1,6 +1,6 @@
 use crate::core_contract::ui_contract::{FileStatus, FileStatusLabel, CellVerdict, VerdictLabel, DiscrepancySummary, EvidenceData};
 use crate::ForensicState;
-use iron_table::contract::RejectionReason;
+use iron_table::contract::{RejectionReason, LineageEntry};
 use iron_adapter::diagnostics::{DiagnosticEngine, StructuredRejection};
 use tauri::State;
 use tracing::instrument;
@@ -102,6 +102,9 @@ pub fn get_table_truth(
                 value: Some(format!("{:?}", cell.value)), // Simplistic formatting
                 verdict,
                 reason,
+                row_idx: cell.row_idx,
+                col_idx: cell.col_idx,
+                source_text: cell.source_text.clone(),
             });
         }
     }
@@ -192,6 +195,23 @@ pub fn get_evidence(
     EvidenceData { image_base64: "".to_string(), metadata: "Cell not found".to_string() }
 }
 
+#[tauri::command]
+#[instrument(skip(state))]
+pub fn get_metric_lineage(
+    metric_key: String,
+    state: State<'_, ForensicState>
+) -> Vec<LineageEntry> {
+    let Ok(truth_guard) = state.active_project_truth.lock() else {
+        return vec![];
+    };
+    
+    if let Some(truth) = truth_guard.as_ref() {
+        truth.lineage.get(&metric_key).cloned().unwrap_or_default()
+    } else {
+        vec![]
+    }
+}
+
 // --- MISSION 026: STRESS TEST GENERATORS ---
 
 fn generate_tri_conflict_table() -> iron_table::contract::TableTruth {
@@ -206,19 +226,19 @@ fn generate_tri_conflict_table() -> iron_table::contract::TableTruth {
 
     let rows = vec![
         TableRow { row_idx: 0, cells: vec![
-            TableCell { row_idx: 0, col_idx: 0, value: CellValue::Int(1), bbox: BoundingBox { x: 50.0, y: 100.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "1".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 0, col_idx: 1, value: CellValue::Text("Hạng mục A".to_string()), bbox: BoundingBox { x: 75.0, y: 100.0, width: 200.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "Hạng mục A".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 0, col_idx: 2, value: CellValue::Float(1000.0), bbox: BoundingBox { x: 280.0, y: 100.0, width: 100.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "1,000".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_0_0".to_string(), row_idx: 0, col_idx: 0, value: CellValue::Int(1), bbox: BoundingBox { x: 50.0, y: 100.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "1".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_0_1".to_string(), row_idx: 0, col_idx: 1, value: CellValue::Text("Hạng mục A".to_string()), bbox: BoundingBox { x: 75.0, y: 100.0, width: 200.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "Hạng mục A".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_0_2".to_string(), row_idx: 0, col_idx: 2, value: CellValue::Float(1000.0), bbox: BoundingBox { x: 280.0, y: 100.0, width: 100.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "1,000".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
         ]},
         TableRow { row_idx: 1, cells: vec![
-            TableCell { row_idx: 1, col_idx: 0, value: CellValue::Int(2), bbox: BoundingBox { x: 50.0, y: 120.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "2".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 1, col_idx: 1, value: CellValue::Text("Hạng mục B".to_string()), bbox: BoundingBox { x: 75.0, y: 120.0, width: 200.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "Hạng mục B".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 1, col_idx: 2, value: CellValue::Float(2000.0), bbox: BoundingBox { x: 280.0, y: 120.0, width: 100.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "2,000".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_1_0".to_string(), row_idx: 1, col_idx: 0, value: CellValue::Int(2), bbox: BoundingBox { x: 50.0, y: 120.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "2".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_1_1".to_string(), row_idx: 1, col_idx: 1, value: CellValue::Text("Hạng mục B".to_string()), bbox: BoundingBox { x: 75.0, y: 120.0, width: 200.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "Hạng mục B".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_1_2".to_string(), row_idx: 1, col_idx: 2, value: CellValue::Float(2000.0), bbox: BoundingBox { x: 280.0, y: 120.0, width: 100.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "2,000".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
         ]},
         TableRow { row_idx: 2, cells: vec![
-            TableCell { row_idx: 2, col_idx: 0, value: CellValue::Null, bbox: BoundingBox { x: 50.0, y: 140.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 2, col_idx: 1, value: CellValue::Text("Tổng cộng (Summary Page)".to_string()), bbox: BoundingBox { x: 75.0, y: 140.0, width: 200.0, height: 15.0, page: 1 }, confidence: 1.0, source_text: "Tổng cộng".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
-            TableCell { row_idx: 2, col_idx: 2, value: CellValue::Float(2900.0), bbox: BoundingBox { x: 280.0, y: 140.0, width: 100.0, height: 15.0, page: 1 }, confidence: 1.0, source_text: "2,900".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_2_0".to_string(), row_idx: 2, col_idx: 0, value: CellValue::Null, bbox: BoundingBox { x: 50.0, y: 140.0, width: 20.0, height: 15.0, page: 0 }, confidence: 1.0, source_text: "".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_2_1".to_string(), row_idx: 2, col_idx: 1, value: CellValue::Text("Tổng cộng (Summary Page)".to_string()), bbox: BoundingBox { x: 75.0, y: 140.0, width: 200.0, height: 15.0, page: 1 }, confidence: 1.0, source_text: "Tổng cộng".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
+            TableCell { global_id: "Tri-Conflict_2_2".to_string(), row_idx: 2, col_idx: 2, value: CellValue::Float(2900.0), bbox: BoundingBox { x: 280.0, y: 140.0, width: 100.0, height: 15.0, page: 1 }, confidence: 1.0, source_text: "2,900".to_string(), encoding_status: EncodingStatus::Clean, encoding_evidence: None },
         ]},
     ];
 

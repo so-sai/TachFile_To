@@ -33,6 +33,12 @@ pub struct CellVerdict {
     pub value: Option<String>,
     pub verdict: VerdictLabel,
     pub reason: Option<RejectionReason>,
+    #[serde(rename = "row_idx")]
+    pub row_idx: usize,
+    #[serde(rename = "col_idx")]
+    pub col_idx: usize,
+    #[serde(rename = "source_text")]
+    pub source_text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

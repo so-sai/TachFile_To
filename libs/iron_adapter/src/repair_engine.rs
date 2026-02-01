@@ -1,17 +1,27 @@
+use serde::{Deserialize, Serialize};
 use iron_table::contract::{TableTruth, TableRejection, CellValue};
 use crate::diagnostics::CellRepair;
 use crate::audit_log::AuditLogger;
 use std::path::Path;
 
 /// Encoding repair mode for legacy Vietnamese fonts
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LegacyEncodingMode {
+    /// PRISTINE: Original UTF-8 data (no conversion)
+    Unicode,
     /// VNI-Times, VNI-Helve font family (digit suffixes)
     Vni,
     /// TCVN3 / .VnTime font family (extended ASCII)
     Tcvn3,
     /// Auto-detect (tries VNI first, then TCVN3)
     Auto,
+}
+
+/// A candidate for encoding repair
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EncodingCandidate {
+    pub mode: LegacyEncodingMode,
+    pub text: String,
 }
 
 pub struct RepairEngine;
@@ -89,12 +99,14 @@ impl RepairEngine {
         let normalizer = crate::encoding_normalizer::EncodingNormalizer::global();
         
         let normalized = match mode {
+            LegacyEncodingMode::Unicode => original_text.to_string(),
             LegacyEncodingMode::Vni => normalizer.vni_to_unicode(original_text),
             LegacyEncodingMode::Tcvn3 => normalizer.tcvn3_to_unicode(original_text),
             LegacyEncodingMode::Auto => normalizer.auto_normalize(original_text),
         };
 
         let mode_name = match mode {
+            LegacyEncodingMode::Unicode => "Unicode",
             LegacyEncodingMode::Vni => "VNI",
             LegacyEncodingMode::Tcvn3 => "TCVN3",
             LegacyEncodingMode::Auto => "Auto",
@@ -137,6 +149,27 @@ impl RepairEngine {
             verdict: verdict.to_string(),
             timestamp: Local::now().to_rfc3339(),
         }
+    }
+
+    /// Returns a list of potential encoding interpretations for a given text.
+    /// This is used for the "Auto-detect Preview" feature.
+    pub fn get_encoding_candidates(input: &str) -> Vec<EncodingCandidate> {
+        let normalizer = crate::encoding_normalizer::EncodingNormalizer::global();
+        
+        vec![
+            EncodingCandidate {
+                mode: LegacyEncodingMode::Unicode,
+                text: input.to_string(),
+            },
+            EncodingCandidate {
+                mode: LegacyEncodingMode::Vni,
+                text: normalizer.vni_to_unicode(input),
+            },
+            EncodingCandidate {
+                mode: LegacyEncodingMode::Tcvn3,
+                text: normalizer.tcvn3_to_unicode(input),
+            },
+        ]
     }
 }
 

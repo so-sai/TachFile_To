@@ -46,14 +46,36 @@ pub enum ConsistencyRule {
 }
 
 // ============================================================================
-// PROJECT TRUTH (THE NEW VALIDATOR)
+// PROJECT GRAPH & RELATIONS (MISSION 030)
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ProjectTruth {
-    pub id: String,
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RelationKind {
+    /// The primary document (e.g., Main Contract)
+    ParentOf,
+    /// An attachment or supplement (e.g., Appendix, Addendum)
+    AppendixTo,
+    /// Cross-reference for validation (e.g., BoQ item references standard price list)
+    VerifiedBy,
+    /// Informational link
+    Reference,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Relation {
+    pub from: TableId,
+    pub to: TableId,
+    pub kind: RelationKind,
+    pub metadata: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProjectGraph {
+    pub project_id: String,
     pub tables: HashMap<TableId, TableTruth>,
     pub rules: Vec<ConsistencyRule>,
+    pub relations: Vec<Relation>,
 }
 
 #[derive(Error, Debug)]
@@ -69,14 +91,18 @@ pub enum ProjectRejection {
     
     #[error("Type Mismatch: {0}")]
     TypeMismatch(String),
+
+    #[error("Circular Dependency: {0}")]
+    CircularDependency(String),
 }
 
-impl ProjectTruth {
+impl ProjectGraph {
     pub fn new(id: String) -> Self {
         Self {
-            id,
+            project_id: id,
             tables: HashMap::new(),
             rules: Vec::new(),
+            relations: Vec::new(),
         }
     }
 
@@ -88,11 +114,13 @@ impl ProjectTruth {
         self.rules.push(rule);
     }
 
-    /// The Supreme Court of Data.
-    /// Returns Ok(()) if the project is internally consistent.
-    /// Returns Err(ProjectRejection) if ANY rule is violated.
-    /// NO COMPUTATION. NO AGGREGATION. NO REPAIR.
+    pub fn add_relation(&mut self, from: TableId, to: TableId, kind: RelationKind) {
+        self.relations.push(Relation { from, to, kind, metadata: None });
+    }
+
+    /// Validates the project graph for internal consistency and relational integrity.
     pub fn validate_project(&self) -> Result<(), ProjectRejection> {
+        // 1. Consistency Rules (The Supreme Court)
         for rule in &self.rules {
             match rule {
                 ConsistencyRule::ExactMatch { source, target } => {
@@ -103,6 +131,17 @@ impl ProjectTruth {
                 }
             }
         }
+        
+        // 2. Relational Integrity
+        for rel in &self.relations {
+            if !self.tables.contains_key(&rel.from) {
+                return Err(ProjectRejection::MissingTable(rel.from.clone()));
+            }
+            if !self.tables.contains_key(&rel.to) {
+                return Err(ProjectRejection::MissingTable(rel.to.clone()));
+            }
+        }
+        
         Ok(())
     }
 
@@ -198,6 +237,7 @@ mod tests {
                 row_idx,
                 cells: row_data.into_iter().enumerate().map(|(col_idx, val)| {
                     TableCell {
+                        global_id: format!("{}_{}_{}", id, row_idx, col_idx),
                         row_idx,
                         col_idx,
                         value: val,
@@ -224,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_exact_match_pass() {
-        let mut project = ProjectTruth::new("test".into());
+        let mut project = ProjectGraph::new("test".into());
         let t1 = create_mock_table("t1", vec![vec![CellValue::Text("A".into())]]);
         let t2 = create_mock_table("t2", vec![vec![CellValue::Text("A".into())]]);
         
@@ -241,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_exact_match_fail() {
-        let mut project = ProjectTruth::new("test".into());
+        let mut project = ProjectGraph::new("test".into());
         let t1 = create_mock_table("t1", vec![vec![CellValue::Text("A".into())]]);
         let t2 = create_mock_table("t2", vec![vec![CellValue::Text("B".into())]]);
         
@@ -261,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_sum_match_pass() {
-        let mut project = ProjectTruth::new("test".into());
+        let mut project = ProjectGraph::new("test".into());
         // Source table: Column 0 has 40.0 and 60.0
         let t1 = create_mock_table("t1", vec![
             vec![CellValue::Float(40.0)],
@@ -286,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_sum_match_fail_strict() {
-        let mut project = ProjectTruth::new("test".into());
+        let mut project = ProjectGraph::new("test".into());
         // Source table: 40.0 + 59.0 = 99.0
         let t1 = create_mock_table("t1", vec![
             vec![CellValue::Float(40.0)],

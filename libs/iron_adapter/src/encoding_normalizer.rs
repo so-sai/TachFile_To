@@ -239,112 +239,58 @@ fn build_vni_map() -> HashMap<&'static str, char> {
 fn build_tcvn3_map() -> HashMap<char, char> {
     let mut map = HashMap::new();
 
-    // === Lowercase vowels with diacritics ===
-    // a with diacritics
-    map.insert('¸', 'á');
-    map.insert('µ', 'à');
-    map.insert('¶', 'ả');
-    map.insert('·', 'ã');
-    map.insert('¹', 'ạ');
+    // === TCVN3 (VSCII-3) to Unicode Elite Mapping Table ===
+    // Based on User-provided "Mission 029 - Elite Standard"
 
-    // â with diacritics
-    map.insert('©', 'â');
-    map.insert('Ê', 'ấ');
-    map.insert('Ç', 'ầ');
-    map.insert('È', 'ẩ');
-    map.insert('É', 'ẫ');
-    map.insert('Ë', 'ậ');
+    // 0x80 - 0x8F
+    map.insert('\u{0080}', 'À'); map.insert('\u{0081}', 'Ả'); map.insert('\u{0082}', 'Ã'); map.insert('\u{0083}', 'Á');
+    map.insert('\u{0084}', 'Ạ'); map.insert('\u{0085}', 'Ặ'); map.insert('\u{0086}', 'Ậ'); map.insert('\u{0087}', 'È');
+    map.insert('\u{0088}', 'Ẻ'); map.insert('\u{0089}', 'Ẽ'); map.insert('\u{008A}', 'É'); map.insert('\u{008B}', 'Ẹ');
+    map.insert('\u{008C}', 'Ệ'); map.insert('\u{008D}', 'Ì'); map.insert('\u{008E}', 'Ỉ'); map.insert('\u{008F}', 'Ĩ');
 
-    // ă with diacritics
-    map.insert('¨', 'ă');
-    map.insert('¾', 'ắ');
-    map.insert('»', 'ằ');
-    map.insert('¼', 'ẳ');
-    map.insert('½', 'ẵ');
-    map.insert('Æ', 'ặ');
+    // 0x90 - 0x9F
+    map.insert('\u{0090}', 'Í'); map.insert('\u{0091}', 'Ị'); map.insert('\u{0092}', 'Ò'); map.insert('\u{0093}', 'Ỏ');
+    map.insert('\u{0094}', 'Õ'); map.insert('\u{0095}', 'Ó'); map.insert('\u{0096}', 'Ọ'); map.insert('\u{0097}', 'Ộ');
+    map.insert('\u{0098}', 'Ờ'); map.insert('\u{0099}', 'Ở'); map.insert('\u{009A}', 'Ỡ'); map.insert('\u{009B}', 'Ớ');
+    map.insert('\u{009C}', 'Ợ'); map.insert('\u{009D}', 'Ù'); map.insert('\u{009E}', 'Ủ'); map.insert('\u{009F}', 'Ũ');
 
-    // e with diacritics
-    map.insert('Ð', 'é');
-    map.insert('Ì', 'è');
-    map.insert('Î', 'ẻ');
-    map.insert('Ï', 'ẽ');
-    map.insert('Ñ', 'ẹ');
+    // 0xA0 - 0xAF
+    map.insert('\u{00A0}', '\u{00A0}'); // NBSP
+    map.insert('\u{00A1}', 'Ă'); map.insert('\u{00A2}', 'Â'); map.insert('\u{00A3}', 'Ê'); map.insert('\u{00A4}', 'Ô');
+    map.insert('\u{00A5}', 'Ơ'); map.insert('\u{00A6}', 'Ư'); map.insert('\u{00A7}', 'Đ'); map.insert('\u{00A8}', 'ă');
+    map.insert('\u{00A9}', 'â'); map.insert('\u{00AA}', 'ê'); map.insert('\u{00AB}', 'ô'); map.insert('\u{00AC}', 'ơ');
+    map.insert('\u{00AD}', 'ư'); map.insert('\u{00AE}', 'đ'); map.insert('\u{00AF}', 'Ằ');
 
-    // ê with diacritics
-    map.insert('ª', 'ê');
-    map.insert('Õ', 'ế');
-    map.insert('Ò', 'ề');
-    map.insert('Ó', 'ể');
-    map.insert('Ô', 'ễ');
-    map.insert('Ö', 'ệ');
+    // 0xB0 - 0xBF
+    map.insert('\u{00B0}', '\u{0300}'); map.insert('\u{00B1}', '\u{0309}'); map.insert('\u{00B2}', '\u{0303}'); map.insert('\u{00B3}', '\u{0301}');
+    map.insert('\u{00B4}', '\u{0323}'); map.insert('\u{00B5}', 'à'); map.insert('\u{00B6}', 'ả'); map.insert('\u{00B7}', 'ã');
+    map.insert('\u{00B8}', 'á'); map.insert('\u{00B9}', 'ạ'); map.insert('\u{00BA}', 'Ẳ'); map.insert('\u{00BB}', 'ằ');
+    map.insert('\u{00BC}', 'ẳ'); map.insert('\u{00BD}', 'ẵ'); map.insert('\u{00BE}', 'ắ'); map.insert('\u{00BF}', 'Ẵ');
 
-    // i with diacritics
-    map.insert('Ý', 'í');
-    map.insert('×', 'ì');
-    map.insert('Ø', 'ỉ');
-    map.insert('Ü', 'ĩ');
-    map.insert('Þ', 'ị');
+    // 0xC0 - 0xCF
+    map.insert('\u{00C0}', 'Ắ'); map.insert('\u{00C1}', 'Ầ'); map.insert('\u{00C2}', 'Ẩ'); map.insert('\u{00C3}', 'Ẫ');
+    map.insert('\u{00C4}', 'Ấ'); map.insert('\u{00C5}', 'Ề'); map.insert('\u{00C6}', 'ặ'); map.insert('\u{00C7}', 'ầ');
+    map.insert('\u{00CC}', 'è'); map.insert('\u{00CD}', 'Ể'); map.insert('\u{00CE}', 'ẻ'); map.insert('\u{00CF}', 'ẽ');
+    // Note: 0xC8-0xCB (ẩ, ẫ, ấ, ậ) handled below in sequence if missing items here
+    map.insert('\u{00C8}', 'ẩ'); map.insert('\u{00C9}', 'ẫ'); map.insert('\u{00CA}', 'ấ'); map.insert('\u{00CB}', 'ậ');
 
-    // o with diacritics
-    map.insert('ã', 'ó');
-    map.insert('ß', 'ò');
-    map.insert('á', 'ỏ');
-    map.insert('â', 'õ');
-    map.insert('ä', 'ọ');
+    // 0xD0 - 0xDF
+    map.insert('\u{00D0}', 'é'); map.insert('\u{00D1}', 'ẹ'); map.insert('\u{00D2}', 'ề'); map.insert('\u{00D3}', 'ể');
+    map.insert('\u{00D4}', 'ễ'); map.insert('\u{00D5}', 'ế'); map.insert('\u{00D6}', 'ệ'); map.insert('\u{00D7}', 'ì');
+    map.insert('\u{00D8}', 'ỉ'); map.insert('\u{00D9}', 'Ễ'); map.insert('\u{00DA}', 'Ế'); map.insert('\u{00DB}', 'Ồ');
+    map.insert('\u{00DC}', 'ĩ'); map.insert('\u{00DD}', 'í'); map.insert('\u{00DE}', 'ị'); map.insert('\u{00DF}', 'ò');
 
-    // ô with diacritics
-    map.insert('«', 'ô');
-    map.insert('è', 'ố');
-    map.insert('å', 'ồ');
-    map.insert('æ', 'ổ');
-    map.insert('ç', 'ỗ');
-    map.insert('é', 'ộ');
+    // 0xE0 - 0xEF
+    map.insert('\u{00E0}', 'Ổ'); map.insert('\u{00E1}', 'ỏ'); map.insert('\u{00E2}', 'õ'); map.insert('\u{00E3}', 'ó');
+    map.insert('\u{00E4}', 'ọ'); map.insert('\u{00E5}', 'ồ'); map.insert('\u{00E6}', 'ổ'); map.insert('\u{00E7}', 'ỗ');
+    map.insert('\u{00E8}', 'ố'); map.insert('\u{00E9}', 'ộ'); map.insert('\u{00EA}', 'ờ'); map.insert('\u{00EB}', 'ở');
+    map.insert('\u{00EC}', 'ỡ'); map.insert('\u{00ED}', 'ớ'); map.insert('\u{00EE}', 'ợ'); map.insert('\u{00EF}', 'ù');
 
-    // ơ with diacritics
-    map.insert('¬', 'ơ');
-    map.insert('í', 'ớ');
-    map.insert('ê', 'ờ');
-    map.insert('ë', 'ở');
-    map.insert('ì', 'ỡ');
-    map.insert('î', 'ợ');
-
-    // u with diacritics
-    map.insert('ó', 'ú');
-    map.insert('ï', 'ù');
-    map.insert('ñ', 'ủ');
-    map.insert('ò', 'ũ');
-    map.insert('ô', 'ụ');
-
-    // ư with diacritics
-    map.insert('­', 'ư');
-    map.insert('ø', 'ứ');
-    map.insert('õ', 'ừ');
-    map.insert('ö', 'ử');
-    map.insert('÷', 'ữ');
-    map.insert('ù', 'ự');
-
-    // y with diacritics
-    map.insert('ý', 'ý');
-    map.insert('ú', 'ỳ');
-    map.insert('û', 'ỷ');
-    map.insert('ü', 'ỹ');
-    map.insert('þ', 'ỵ');
-
-    // đ
-    map.insert('®', 'đ');
-
-    // === Uppercase vowels === (commonly needed)
-    map.insert('¡', 'Ă');
-    map.insert('¢', 'Â');
-    map.insert('£', 'Ê');
-    map.insert('¤', 'Ô');
-    map.insert('¥', 'Ơ');
-    map.insert('¦', 'Ư');
-    map.insert('§', 'Đ');
-
-    // Additional uppercase with tones (partial - most common)
-    map.insert('¤', 'Ô');
-    map.insert('¾', 'Ắ');
+    // 0xF0 - 0xFF
+    map.insert('\u{00F0}', 'Ỗ'); map.insert('\u{00F1}', 'ủ'); map.insert('\u{00F2}', 'ũ'); map.insert('\u{00F3}', 'ú');
+    map.insert('\u{00F4}', 'ụ'); map.insert('\u{00F5}', 'ừ'); map.insert('\u{00F6}', 'ử'); map.insert('\u{00F7}', 'ữ');
+    map.insert('\u{00F8}', 'ứ'); map.insert('\u{00F9}', 'ự'); map.insert('\u{00FA}', 'ỳ'); map.insert('\u{00FB}', 'ỷ');
+    map.insert('\u{00FC}', 'ỹ'); map.insert('\u{00FD}', 'ý'); map.insert('\u{00FE}', 'ỵ'); map.insert('\u{00FF}', 'Ố');
 
     map
 }

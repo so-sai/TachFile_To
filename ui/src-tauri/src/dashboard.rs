@@ -10,6 +10,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::excel_engine::ExcelAppState;
+use crate::ForensicState;
+use iron_engine::calculator;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct DashboardSummary {
@@ -52,6 +54,7 @@ pub struct DashboardMetrics {
 #[tauri::command]
 pub async fn get_dashboard_summary(
     state: State<'_, ExcelAppState>,
+    forensic: State<'_, ForensicState>,
 ) -> Result<DashboardSummary, String> {
     let state_guard = state.df.lock().map_err(|_| "Lỗi lock state".to_string())?;
 
@@ -119,16 +122,33 @@ pub async fn get_dashboard_summary(
         0
     };
 
+    // 🎯 9. INTEGRATE IRON ENGINE (Scientific Dashboard)
+    let timestamp = chrono::Local::now().to_rfc3339();
+    let project_truth = calculator::derive_project_truth(&df, timestamp)
+        .map_err(|e| format!("Engine error: {:?}", e))?;
+    
+    // Store in ForensicState for drill-down/lineage
+    {
+        let mut truth_guard = forensic.active_project_truth.lock().map_err(|_| "Lỗi lock forensic".to_string())?;
+        *truth_guard = Some(project_truth.clone());
+    }
+
+    let status_str = match project_truth.project_status {
+        iron_table::contract::ProjectStatus::Safe => "XANH",
+        iron_table::contract::ProjectStatus::Warning => "VÀNG",
+        iron_table::contract::ProjectStatus::Critical => "ĐỎ",
+    };
+
     Ok(DashboardSummary {
-        status,
-        status_reason: format!("{} - {}", status_reason, deviation_reason),
+        status: status_str.to_string(),
+        status_reason: format!("{} - {}", project_truth.status_reason, deviation_reason),
         top_risks,
         payment_progress,
         pending_actions,
         metrics: DashboardMetrics {
             total_rows,
-            total_amount,
-            avg_deviation: diff_percent,
+            total_amount: project_truth.financials.total_cost, // Unified with Engine
+            avg_deviation: project_truth.deviation.percentage, // Unified with Engine
             high_risk_count,
             critical_count,
             profit_margin_percent,

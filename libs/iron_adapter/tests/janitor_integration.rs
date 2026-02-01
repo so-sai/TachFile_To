@@ -19,6 +19,7 @@ fn test_janitor_cleans_dirty_data() {
         row_idx: 0,
         cells: vec![
             TableCell {
+                global_id: "test_dirty_0_0".to_string(),
                 row_idx: 0,
                 col_idx: 0,
                 value: CellValue::Text("Be tong mong".to_string()),
@@ -29,6 +30,7 @@ fn test_janitor_cleans_dirty_data() {
                 encoding_evidence: None,
             },
             TableCell {
+                global_id: "test_dirty_0_1".to_string(),
                 row_idx: 0,
                 col_idx: 1,
                 value: CellValue::Text("1.250,50 m3".to_string()), // Dirty: VN formatting + unit suffix
@@ -39,6 +41,7 @@ fn test_janitor_cleans_dirty_data() {
                 encoding_evidence: None,
             },
             TableCell {
+                global_id: "test_dirty_0_2".to_string(),
                 row_idx: 0,
                 col_idx: 2,
                 value: CellValue::Text("500.000 VND".to_string()), // Dirty: VN formatting + currency suffix
@@ -55,6 +58,7 @@ fn test_janitor_cleans_dirty_data() {
         row_idx: 1,
         cells: vec![
             TableCell {
+                global_id: "test_dirty_1_0".to_string(),
                 row_idx: 1,
                 col_idx: 0,
                 value: CellValue::Text("Thep san".to_string()),
@@ -65,6 +69,7 @@ fn test_janitor_cleans_dirty_data() {
                 encoding_evidence: None,
             },
             TableCell {
+                global_id: "test_dirty_1_1".to_string(),
                 row_idx: 1,
                 col_idx: 1,
                 value: CellValue::Float(100.0),
@@ -75,6 +80,7 @@ fn test_janitor_cleans_dirty_data() {
                 encoding_evidence: None,
             },
             TableCell {
+                global_id: "test_dirty_1_2".to_string(),
                 row_idx: 1,
                 col_idx: 2,
                 value: CellValue::Float(50.0),
@@ -142,6 +148,7 @@ fn test_janitor_rejects_mojibake_at_truth() {
         row_idx: 0,
         cells: vec![
             TableCell {
+                global_id: "test_mojibake_0_0".to_string(),
                 row_idx: 0,
                 col_idx: 0,
                 value: CellValue::Text("B├¬ t├┤ng m├│ng".to_string()),
@@ -158,6 +165,7 @@ fn test_janitor_rejects_mojibake_at_truth() {
         row_idx: 1,
         cells: vec![
             TableCell {
+                global_id: "test_mojibake_1_0".to_string(),
                 row_idx: 1,
                 col_idx: 0,
                 value: CellValue::Text("Bê tông sạch".to_string()),

@@ -105,17 +105,14 @@ impl DoclingBridge {
         let col_count = max_col + 1;
         let row_count = max_row + 1;
 
+        let table_id = format!("{}-{}-{}", source_path.file_stem().unwrap().to_string_lossy(), page_no, table_idx);
+
         // 2. Build Rows & Cells
         let mut table_rows = Vec::new();
         
         for r in 0..row_count {
             let mut row_cells = Vec::new();
             if let Some(d_cells) = cells_by_row.get(&r) {
-                // Determine row-level cells. 
-                // Note: Docling might have sparse cells. 
-                // IronTable expects dense cells? `TableTruth` validation checks row.cells.len() == schema.col_count
-                
-                // We need to fill holes with Null/Empty cells to ensure density
                 let mut d_cell_map: BTreeMap<usize, &DoclingCell> = BTreeMap::new();
                 for c in d_cells {
                     d_cell_map.insert(c.col_index, c);
@@ -136,6 +133,7 @@ impl DoclingBridge {
                         };
 
                         let cell = TableCell {
+                            global_id: format!("{}_{}_{}", table_id, dc.row_index, dc.col_index),
                             row_idx: dc.row_index,
                             col_idx: dc.col_index,
                             value,
@@ -155,6 +153,7 @@ impl DoclingBridge {
                     } else {
                         // Fill missing cell
                         row_cells.push(TableCell {
+                            global_id: format!("{}_{}_{}", table_id, r, c),
                             row_idx: r,
                             col_idx: c,
                             value: CellValue::Null,
@@ -170,6 +169,7 @@ impl DoclingBridge {
                  // Empty row
                  for c in 0..col_count {
                     row_cells.push(TableCell {
+                        global_id: format!("{}_{}_{}", table_id, r, c),
                         row_idx: r,
                         col_idx: c,
                         value: CellValue::Null,
@@ -185,7 +185,6 @@ impl DoclingBridge {
         }
 
         // 3. Build Schema
-        // Default to Generic Columns for now since we haven't implemented header detection logic from the user
         let mut columns = Vec::new();
         for i in 0..col_count {
             columns.push(ColumnDef {
@@ -205,7 +204,7 @@ impl DoclingBridge {
 
         // 4. Construct TableTruth
         Ok(TableTruth {
-            table_id: format!("{}-{}-{}", source_path.file_stem().unwrap().to_string_lossy(), page_no, table_idx),
+            table_id,
             source_file: PathBuf::from(source_path),
             source_page: page_no,
             schema,
@@ -213,9 +212,9 @@ impl DoclingBridge {
             extraction_meta: ExtractionMeta {
                 tool_version: "Docling V2".to_string(),
                 timestamp: Local::now().to_rfc3339(),
-                confidence_score: 1.0, // Aggregate could be calc'd but 1.0 for the container
+                confidence_score: 1.0, 
             },
-            bbox: BoundingBox { // Page-level or Table-level union bbox? Using placeholder.
+            bbox: BoundingBox { 
                 x: 0.0, y: 0.0, width: page_size.width as f32, height: page_size.height as f32, page: page_no
             },
         })
@@ -228,14 +227,9 @@ pub struct ProjectAssembler;
 
 impl ProjectAssembler {
     /// Assembles a ProjectTruth from a collection of TableTruths.
-    /// This is where we would implement logic to link Summary tables to Detail tables.
-    /// For Mission 024, we provide a basic pass-through or simple aggregation.
     pub fn assemble(_tables: Vec<TableTruth>) -> Result<iron_table::contract::ProjectTruth, BridgeError> {
-        // TODO: Implement actual assembly logic (grouping, validation)
-        // For now, return a dummy ProjectTruth to satisfy the interface.
-        // Real implementation requires detailed business rules (Mission 023).
-        
         use iron_table::contract::{ProjectTruth, ProjectStatus, Financials, DeviationSummary, SystemMetrics};
+        use std::collections::HashMap;
 
         Ok(ProjectTruth {
             project_name: "Docling Import".to_string(),
@@ -259,6 +253,7 @@ impl ProjectAssembler {
                 row_count: _tables.iter().map(|t| t.rows.len()).sum(),
                 processing_time_ms: 0,
             },
+            lineage: HashMap::new(),
         })
     }
 }

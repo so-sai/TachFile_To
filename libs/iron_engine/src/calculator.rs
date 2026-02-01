@@ -27,13 +27,31 @@ use crate::{Result, EngineError};
 /// 
 /// **Determinism:** Timestamp must be provided by caller to ensure idempotence.
 pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<ProjectTruth> {
+    use iron_table::LineageEntry;
+    use std::collections::HashMap;
 
     let financials = calculate_financials(df)?;
     let deviation = calculate_deviation(df)?;
     let status = determine_status(&deviation);
     
+    let mut lineage = HashMap::new();
+    
+    // Collect lineage for key financial metrics
+    if df.column("total_cost").is_ok() {
+        lineage.insert("total_cost".to_string(), collect_lineage(df, "total_cost"));
+    }
+    if df.column("total_paid").is_ok() {
+        lineage.insert("total_paid".to_string(), collect_lineage(df, "total_paid"));
+    }
+    if df.column("budget").is_ok() {
+        lineage.insert("budget".to_string(), collect_lineage(df, "budget"));
+    }
+    if df.column("actual").is_ok() {
+        lineage.insert("actual".to_string(), collect_lineage(df, "actual"));
+    }
+
     Ok(ProjectTruth {
-        project_name: "TODO".to_string(),
+        project_name: "Consolidated Dashboard".to_string(),
         last_updated: timestamp,
         data_source: "iron_engine".to_string(),
         
@@ -49,7 +67,52 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
             row_count: df.height(),
             processing_time_ms: 0,
         },
+        lineage,
     })
+}
+
+fn collect_lineage(df: &DataFrame, value_col: &str) -> Vec<iron_table::LineageEntry> {
+    use iron_table::LineageEntry;
+    let mut entries = Vec::new();
+    
+    let val_column = match df.column(value_col) {
+        Ok(c) => c,
+        Err(_) => return entries,
+    };
+    
+    let lin_col_name = format!("_lineage_{}", value_col);
+    let lin_column = match df.column(&lin_col_name) {
+        Ok(c) => c,
+        Err(_) => return entries,
+    };
+
+    let f64_vals = match val_column.f64() {
+        Ok(v) => v,
+        Err(_) => return entries,
+    };
+    
+    let lin_vals = match lin_column.str() {
+        Ok(l) => l,
+        Err(_) => return entries,
+    };
+
+    for i in 0..df.height() {
+        if let (Some(val), Some(lin_id)) = (f64_vals.get(i), lin_vals.get(i)) {
+            if val != 0.0 {
+                let parts: Vec<&str> = lin_id.split('_').collect();
+                if parts.len() >= 3 {
+                    entries.push(LineageEntry {
+                        source_table: parts[0..parts.len()-2].join("_"),
+                        row_idx: parts[parts.len()-2].parse().unwrap_or(0),
+                        col_idx: parts[parts.len()-1].parse().unwrap_or(0),
+                        contribution: val,
+                    });
+                }
+            }
+        }
+    }
+    
+    entries
 }
 
 fn calculate_financials(df: &DataFrame) -> Result<Financials> {
@@ -240,6 +303,9 @@ mod tests {
 
         // Verify status equality
         assert_eq!(truth1.project_status, truth2.project_status);
+        
+        // Verify lineage equality
+        assert_eq!(truth1.lineage.len(), truth2.lineage.len());
     }
 
     /// Helper: Create a test DataFrame with known values
@@ -249,11 +315,16 @@ mod tests {
         let budget_col = Series::new("budget".into(), &[1000.0, 2000.0]);
         let actual_col = Series::new("actual".into(), &[900.0, 1800.0]);
         
+        let lin_cost = Series::new("_lineage_total_cost".into(), &["test_0_2", "test_1_2"]);
+        let lin_paid = Series::new("_lineage_total_paid".into(), &["test_0_3", "test_1_3"]);
+        
         DataFrame::new(vec![
             Column::from(total_cost_col),
             Column::from(total_paid_col),
             Column::from(budget_col),
             Column::from(actual_col),
+            Column::from(lin_cost),
+            Column::from(lin_paid),
         ]).expect("Test DataFrame creation should succeed")
     }
 }

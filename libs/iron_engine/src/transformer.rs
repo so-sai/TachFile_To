@@ -35,13 +35,36 @@ pub fn to_dataframe(table: &TableTruth) -> Result<DataFrame> {
     let mut series_vec: Vec<Series> = Vec::new();
 
     for col_def in &table.schema.columns {
+        // 1. Value Series
         let series = build_series(table, col_def)?;
         series_vec.push(series);
+        
+        // 2. Lineage Series (Shadow)
+        let lineage_series = build_lineage_series(table, col_def)?;
+        series_vec.push(lineage_series);
     }
 
     // Convert Series to Column for DataFrame
     let columns: Vec<Column> = series_vec.into_iter().map(Column::from).collect();
     DataFrame::new(columns).map_err(|e| e.into())
+}
+
+fn build_lineage_series(table: &TableTruth, col_def: &ColumnDef) -> Result<Series> {
+    let col_idx = table.schema.columns
+        .iter()
+        .position(|c| c.name == col_def.name)
+        .ok_or_else(|| EngineError::SchemaMismatch(
+            format!("Column '{}' not found in schema", col_def.name)
+        ))?;
+
+    let values: Vec<Option<String>> = table.rows
+        .iter()
+        .map(|row| {
+            row.cells.get(col_idx).map(|cell| cell.global_id.clone())
+        })
+        .collect();
+
+    Ok(Series::new(format!("_lineage_{}", col_def.name).into(), &values))
 }
 
 
@@ -146,6 +169,7 @@ mod tests {
                     row_idx: 0,
                     cells: vec![
                         TableCell {
+                            global_id: "test-table-001_0_0".to_string(),
                             row_idx: 0,
                             col_idx: 0,
                             value: CellValue::Int(1),
@@ -156,6 +180,7 @@ mod tests {
                             encoding_evidence: None,
                         },
                         TableCell {
+                            global_id: "test-table-001_0_1".to_string(),
                             row_idx: 0,
                             col_idx: 1,
                             value: CellValue::Float(1000.50),
@@ -166,6 +191,7 @@ mod tests {
                             encoding_evidence: None,
                         },
                         TableCell {
+                            global_id: "test-table-001_0_2".to_string(),
                             row_idx: 0,
                             col_idx: 2,
                             value: CellValue::Text("Item A".to_string()),
@@ -181,6 +207,7 @@ mod tests {
                     row_idx: 1,
                     cells: vec![
                         TableCell {
+                            global_id: "test-table-001_1_0".to_string(),
                             row_idx: 1,
                             col_idx: 0,
                             value: CellValue::Int(2),
@@ -191,6 +218,7 @@ mod tests {
                             encoding_evidence: None,
                         },
                         TableCell {
+                            global_id: "test-table-001_1_1".to_string(),
                             row_idx: 1,
                             col_idx: 1,
                             value: CellValue::Float(2500.75),
@@ -201,6 +229,7 @@ mod tests {
                             encoding_evidence: None,
                         },
                         TableCell {
+                            global_id: "test-table-001_1_2".to_string(),
                             row_idx: 1,
                             col_idx: 2,
                             value: CellValue::Text("Item B".to_string()),
@@ -229,18 +258,21 @@ mod tests {
         let table = create_test_table_truth();
         let df = to_dataframe(&table).expect("DataFrame conversion should succeed");
 
-        // Verify column count
-        assert_eq!(df.width(), 3, "DataFrame should have 3 columns");
+        // Verify column count (3 data columns + 3 lineage columns)
+        assert_eq!(df.width(), 6, "DataFrame should have 6 columns");
 
         // Verify row count
         assert_eq!(df.height(), 2, "DataFrame should have 2 rows");
 
         // Verify column names
-        let col_names = df.get_column_names();
-        assert_eq!(col_names.len(), 3);
-        assert_eq!(col_names[0], "id");
-        assert_eq!(col_names[1], "amount");
-        assert_eq!(col_names[2], "description");
+        let col_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+        assert_eq!(col_names.len(), 6);
+        assert!(col_names.contains(&"id".to_string()));
+        assert!(col_names.contains(&"_lineage_id".to_string()));
+        assert!(col_names.contains(&"amount".to_string()));
+        assert!(col_names.contains(&"_lineage_amount".to_string()));
+        assert!(col_names.contains(&"description".to_string()));
+        assert!(col_names.contains(&"_lineage_description".to_string()));
 
         // Verify column types (using Polars DataType)
         assert!(matches!(df.column("id").unwrap().dtype(), polars::prelude::DataType::Int64));

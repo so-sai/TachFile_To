@@ -18,20 +18,22 @@ mod telemetry;
 mod telemetry_state;
 
 use excel_engine::ExcelAppState;
-use iron_table::contract::TableTruth;
+use iron_table::contract::{TableTruth, ProjectTruth};
 use iron_adapter::diagnostics::StructuredRejection;
 use std::sync::Mutex;
 
 pub struct ForensicState {
     pub active_table: Mutex<Option<TableTruth>>,
     pub active_violations: Mutex<Vec<StructuredRejection>>,
+    pub active_project_truth: Mutex<Option<ProjectTruth>>,
 }
 
 impl Default for ForensicState {
     fn default() -> Self {
         Self {
             active_table: Mutex::new(None),
-            active_violations: Mutex::new(None.unwrap_or_default()),
+            active_violations: Mutex::new(Vec::new()),
+            active_project_truth: Mutex::new(None),
         }
     }
 }
@@ -66,10 +68,13 @@ pub fn run() {
             commands::repair::get_structural_diagnostics,
             commands::repair::apply_table_repairs,
             commands::repair::seal_table_truth,
+            commands::repair::get_encoding_candidates,
+            commands::repair::apply_table_repairs_to_active,
             commands::ui_bridge::get_file_ledger,
             commands::ui_bridge::get_table_truth,
             commands::ui_bridge::get_evidence,
-            commands::ui_bridge::get_discrepancy
+            commands::ui_bridge::get_discrepancy,
+            commands::ui_bridge::get_metric_lineage
         ])
         .run(tauri::generate_context!())
         .expect("Lỗi khi chạy Tauri application");

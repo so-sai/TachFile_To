@@ -56,6 +56,7 @@ fn test_mojibake_hell_deterministic_rejection() {
             row_idx: idx,
             cells: vec![
                 TableCell {
+                    global_id: format!("mojibake_hell_{}_0", idx),
                     row_idx: idx,
                     col_idx: 0,
                     value: CellValue::Text(corrupted.to_string()),
@@ -72,6 +73,7 @@ fn test_mojibake_hell_deterministic_rejection() {
                     encoding_evidence: None,
                 },
                 TableCell {
+                    global_id: format!("mojibake_hell_{}_1", idx),
                     row_idx: idx,
                     col_idx: 1,
                     value: CellValue::Text(expected.to_string()),
@@ -272,6 +274,7 @@ fn test_clean_vietnamese_passes_stress() {
         rows.push(TableRow {
             row_idx: idx,
             cells: vec![TableCell {
+                global_id: format!("clean_vietnamese_{}_0", idx),
                 row_idx: idx,
                 col_idx: 0,
                 value: CellValue::Text(text.to_string()),
