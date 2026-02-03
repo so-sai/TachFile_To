@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use crossbeam_channel::{unbounded, Sender, Receiver};
 
 use crate::resource_court::{CacheRegistry, CacheEntry};
-use crate::executioner::ledger::{SqliteLedger, LedgerBackend};
+use crate::executioner::ledger::{SqliteLedger, LedgerBackend, WarrantEntry};
 use crate::executioner::discipline::{DisciplineGuard, DisciplineDecision, FrameBudget, PressureMonitor};
 use crate::executioner::api::{QuiesceSignal, current_timestamp};
 

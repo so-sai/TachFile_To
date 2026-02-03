@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 /* 🚀 Base Styles */
 @layer base {
   body {
     background-color: #F9FAFB;
     color: #111827;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'Space Grotesk', -apple-system, sans-serif; /* CONSTITUTION: Primary Font */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
@@ -21,8 +21,8 @@
   scrollbar-color: #E2E8F0 #F8FAFC;
 
   &::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 14px; /* CONSTITUTION: 14px */
+    height: 14px;
   }
 
   &::-webkit-scrollbar-track {
@@ -33,7 +33,7 @@
   &::-webkit-scrollbar-thumb {
     background-color: #E2E8F0;
     border: 2px solid #F8FAFC;
-    border-radius: 9999px;
+    border-radius: 0px; /* CONSTITUTION: Square Edges */
   }
 
   &::-webkit-scrollbar-thumb:hover {

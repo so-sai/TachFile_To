@@ -1,5 +1,6 @@
 use iron_engine::{to_dataframe, TableTruth};
 use iron_adapter::{Janitor, IronJanitor};
+use polars::prelude::*;
 use std::fs;
 use std::path::PathBuf;
 

@@ -236,6 +236,9 @@ pub struct ProjectTruth {
     pub deviation: DeviationSummary,
     pub top_risks: Vec<RiskItem>,
     pub pending_actions: Vec<ActionItem>,
+    /// List of technical data violations (R01-R05)
+    #[serde(default)] 
+    pub verdicts: Vec<DataVerdict>,
     pub metrics: SystemMetrics,
     
     /// Map of metric IDs (e.g., "total_cost") to their contributing sources.
@@ -281,4 +284,27 @@ pub struct SystemMetrics {
     pub row_count: usize,
     pub processing_time_ms: u64,
 }
+
+// ============================================================================
+// DATA VERDICTS (R01-R05)
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ViolationType {
+    MathError,       // R01: Sum mismatch
+    Traceability,    // R02: Missing lineage
+    Encoding,        // R03: Mojibake
+    Anomaly,         // R04: Negative values
+    Mismatch,        // R05: Cross-source differ
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DataVerdict {
+    pub violation: ViolationType,
+    pub severity: u8,          // 1: Info, 2: Warning, 3: Critical
+    pub message: String,       // e.g. "Calculated 100 != Reported 90"
+    pub technical_ref: String, // e.g. "Row 5, Col 'ThanhTien'"
+    pub evidence_id: Option<String>,
+}
+
 

@@ -267,6 +267,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use tempfile::tempdir;
+    use chrono::Utc;
 
     #[test]
     fn test_ledger_creation() {

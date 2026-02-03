@@ -136,3 +136,19 @@ description: Rust Elite Standards (Edition 2024, Safe & Robust)
 - **Backward Compatibility**: When adding new fields to core data contracts (e.g., `TableCell`), use `#[serde(default)]` to ensure compatibility with existing serialized mocks and project files.
 - **Polars String Handling (0.52)**: To check if a column name exists in `df.get_column_names()`, convert to a `Vec<String>` first or handle `PlSmallStr` types carefully to avoid `&str` vs `&&str` type mismatches in `.contains()`.
 - **Forensic State Persistence**: Tauri backend `ForensicState` must act as the primary cache for derived truths (like `ProjectTruth`) to ensure consistency across independent IPC commands (Drill-down, Export).
+
+## Tauri v2 & Serde Interop Protocol (RC-1 Legacy)
+
+- **Trait Scoping (Emitter)**: 
+  - To use `.emit()` on an AppHandle in Tauri v2, you MUST import the trait: `use tauri::Emitter;`. The `Manager` trait is no longer sufficient for event emission.
+- **Serialization Mismatches ("The Camel Trap")**:
+  - **Rule**: Tauri v2 often defaults to `camelCase` for serialized output.
+  - **Risk**: Rust structs with `snake_case` fields (e.g., `cell_id`) may arrive at Frontend as `cellId` or `cell_id`, leading to `undefined` errors.
+  - **Prescription**: 
+    - Explicitly explicitly decorate structs with `#[serde(rename = "your_field_name")]` if the frontend expects a specific casing.
+    - Or use `#[serde(rename_all = "camelCase")]` for the entire struct.
+    - **Frontend Defense**: Always use optional chaining (e.g., `payload?.cell_id?.split(...)`) and verify field existence before operations.
+- **Clean Hands Compilation**:
+  - **Zero Tolerance**: `cargo check` warnings (unused imports, dead fields) are unacceptable in Release Candidates.
+  - **Prefixing**: Unused fields in structs (required for FFI compatibility but not logic) MUST be prefixed with `_` (e.g., `_ctx`, `_start_time`).
+  - **Comment Out**: If a function or import is truly unused, comment it out or remove it. Do not suppress warnings with `#[allow(...)]` unless it is a temporary bridge.

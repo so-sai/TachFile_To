@@ -254,6 +254,7 @@ impl ProjectAssembler {
                 processing_time_ms: 0,
             },
             lineage: HashMap::new(),
+            verdicts: vec![],
         })
     }
 }

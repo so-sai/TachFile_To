@@ -31,6 +31,10 @@ fn test_025_01_user_fixes_low_confidence() {
         old_value: CellValue::Text("Co lumn 1".to_string()),
         new_value: CellValue::Text("Column 1".to_string()),
         reason: "Fixed OCR typo".to_string(),
+        reason_code: "MANUAL_FIX".to_string(),
+        timestamp: "".to_string(),
+        actor: "".to_string(),
+        signature_hash: "".to_string(),
     };
     let repair_2 = CellRepair {
         row_idx: 1,
@@ -38,6 +42,10 @@ fn test_025_01_user_fixes_low_confidence() {
         old_value: CellValue::Text("Data Row".to_string()),
         new_value: CellValue::Text("Data Row".to_string()),
         reason: "Confirmed correct".to_string(),
+        reason_code: "MANUAL_FIX".to_string(),
+        timestamp: "".to_string(),
+        actor: "".to_string(),
+        signature_hash: "".to_string(),
     };
 
     // Apply repairs
@@ -98,6 +106,10 @@ fn test_025_02_user_fixes_sum_mismatch() {
         old_value: CellValue::Float(40.0),
         new_value: CellValue::Float(50.0),
         reason: "User corrected missing 10 units in detail".to_string(),
+        reason_code: "MANUAL_FIX".to_string(),
+        timestamp: "".to_string(),
+        actor: "".to_string(),
+        signature_hash: "".to_string(),
     };
 
     let repaired_det = RepairEngine::apply_repairs(&tables_det[0], vec![repair], None).expect("Repair Detail failed");
@@ -124,6 +136,10 @@ fn test_025_03_bypass_attempt_rejected() {
         old_value: CellValue::Int(100),
         new_value: CellValue::Text("\u{251C}\u{00AC}".to_string()), // Forced Mojibake: ├¬
         reason: "Intentionally broken repair".to_string(),
+        reason_code: "TEST_BYPASS".to_string(),
+        timestamp: "".to_string(),
+        actor: "".to_string(),
+        signature_hash: "".to_string(),
     };
 
     let result = RepairEngine::apply_repairs(table, vec![dirty_repair], None);

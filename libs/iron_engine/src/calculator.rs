@@ -49,7 +49,7 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
         lineage.insert("actual".to_string(), collect_lineage(df, "actual"));
     }
 
-    Ok(ProjectTruth {
+    let mut project_truth = ProjectTruth {
         project_name: "Consolidated Dashboard".to_string(),
         last_updated: timestamp,
         data_source: "iron_engine".to_string(),
@@ -61,13 +61,26 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
         deviation,
         top_risks: vec![],
         pending_actions: vec![],
+        verdicts: vec![], // Placeholder, allowing calculate logic to run first
         metrics: SystemMetrics {
             table_count: 1,
             row_count: df.height(),
             processing_time_ms: 0,
         },
         lineage,
-    })
+    };
+
+    // MISSION 034: The Judge's Verdict
+    // Run the ValidationEngine against the calculated truth
+    let context = crate::ValidationContext {
+        project_truth: &project_truth,
+        raw_tables: &[], // TODO: In V2, we will pass TableTruth here for R02/R03
+        comparison_pairs: &[], // Mission 034: Future R05 logic will fill this
+    };
+    
+    project_truth.verdicts = crate::ValidationEngine::verify(context);
+
+    Ok(project_truth)
 }
 
 fn collect_lineage(df: &DataFrame, value_col: &str) -> Vec<iron_table::LineageEntry> {

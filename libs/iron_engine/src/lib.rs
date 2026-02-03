@@ -14,14 +14,17 @@
 pub mod transformer;
 pub mod calculator;
 pub mod exporter;
+pub mod validation_engine;
 
 pub use transformer::to_dataframe;
 pub use calculator::derive_project_truth;
+pub use validation_engine::{ValidationEngine, ValidationContext};
 
 /// Re-export core types from iron_table
 pub use iron_table::{
     TableTruth, ProjectTruth, ProjectStatus,
-    Financials, DeviationSummary, RiskItem, ActionItem, SystemMetrics
+    Financials, DeviationSummary, RiskItem, ActionItem, SystemMetrics,
+    DataVerdict, ViolationType
 };
 
 #[derive(Debug, thiserror::Error)]

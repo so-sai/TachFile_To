@@ -89,3 +89,12 @@ Software for Engineers must feel like a precision instrument.
     -   Automatically clean up stale `target/` artifacts if they exceed the project threshold (recommend 5GB).
 3.  **Privacy Purge**:
     -   Ensure all `blob:` URLs and temp buffers from PDF/Excel parsing are revoked/dropped immediately after render to prevent persistent memory footprints.
+
+## VI. Identity & Interaction Lockdown (RC-1 Hardening)
+
+1.  **Identity Minimalism**:
+    -   **Footer Policy**: Applications for official/forensic use must NOT use hyperlinks in footers. Identify as `GITHUB.COM/NAMESPACE` in plain text with `select-none cursor-default` classes to prevent accidental navigation.
+    
+2.  **State Lock Prevention**:
+    -   **Always-Open Doors**: Critical actions (e.g., "Add File") must NEVER be hidden behind a loading state. Users must always have an escape hatch or a way to queue more work.
+    -   **Pattern**: Place primary ingestion triggers in the Header/Sidebar, decoupled from the main workspace canvas state.

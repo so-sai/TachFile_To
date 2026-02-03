@@ -361,7 +361,7 @@ impl TerminologyNormalizer {
     }
 }
 
-/* #[command]
+#[command]
 pub fn cmd_normalize_columns(
     column_names: Vec<String>,
 ) -> Result<Vec<ColumnNormalizationResult>, String> {
@@ -370,7 +370,7 @@ pub fn cmd_normalize_columns(
         .map(|col| GLOBAL_NORMALIZER.normalize_column_name(col))
         .collect();
     Ok(result)
-} */
+}
 
 // ============================================================================
 // 🧪 TEST SUITE - COLUMN NORMALIZER
