@@ -1,13 +1,12 @@
 //! Validation Engine: The Technical Verification Core.
-//! 
+//!
 //! **Role:** Transforms technical signals into Data Verdicts (Rules R01-R05).
 //! **Status:** SKELETON (Mission 034 - Refactored)
-//! 
-//! This module DOES NOT judge business/legal compliance. 
+//!
+//! This module DOES NOT judge business/legal compliance.
 //! It verifies DATA CONSISTENCY only.
 
-use iron_table::{ProjectTruth, TableTruth, EncodingStatus, DataVerdict, ViolationType};
-use serde::{Deserialize, Serialize};
+use iron_table::{DataVerdict, ProjectTruth, TableTruth, ViolationType};
 
 pub struct ValidationContext<'a> {
     pub project_truth: &'a ProjectTruth,
@@ -31,12 +30,7 @@ impl ValidationEngine {
         // 1. Verify R01: Global Arithmetic Integrity
         verdicts.extend(Self::verify_r01_math(context.project_truth));
 
-        // 2. Verify R02, R03, R04: Row-level consistency
-        for table in context.raw_tables {
-            verdicts.extend(Self::verify_table_rows(table));
-        }
-
-        // 3. Verify R05: Cross-Source Consistency (PDF vs Excel)
+        // 2. Verify R05: Cross-Source Consistency (PDF vs Excel)
         for (primary, secondary) in context.comparison_pairs {
             verdicts.extend(Self::verify_r05_mismatch(primary, secondary));
         }
@@ -47,12 +41,13 @@ impl ValidationEngine {
     /// R01: Arithmetic Inconsistency
     fn verify_r01_math(truth: &ProjectTruth) -> Vec<DataVerdict> {
         let mut findings = Vec::new();
-        
+
         // Example check: Remaining = Cost - Paid
         let calc_remaining = truth.financials.total_cost - truth.financials.total_paid;
         let diff = (truth.financials.remaining - calc_remaining).abs();
 
-        if diff > 1.0 { // Epsilon 1.0 VND
+        if diff > 1.0 {
+            // Epsilon 1.0 VND
             findings.push(DataVerdict {
                 violation: ViolationType::MathError,
                 severity: 3, // Critical
@@ -63,44 +58,6 @@ impl ValidationEngine {
                 technical_ref: "ProjectTruth::Financials".to_string(),
                 evidence_id: None,
             });
-        }
-
-        findings
-    }
-
-    /// Scan table for R03 (Encoding), R04 (Anomalies)
-    fn verify_table_rows(table: &TableTruth) -> Vec<DataVerdict> {
-        let mut findings = Vec::new();
-
-        for row in &table.rows {
-            for cell in &row.cells {
-                // R03: Encoding Check
-                if matches!(cell.encoding_status, EncodingStatus::Suspicious | EncodingStatus::Invalid) {
-                    findings.push(DataVerdict {
-                        violation: ViolationType::Encoding,
-                        severity: 2, // Warning
-                        message: format!(
-                            "Encoding Corruption: Value '{}' flagged as {:?}.",
-                            cell.value.as_str().unwrap_or("???"), cell.encoding_status
-                        ),
-                        technical_ref: format!("Row {}, Col {}", cell.row_idx, cell.col_idx),
-                        evidence_id: Some(cell.global_id.clone()),
-                    });
-                }
-                
-                // R04: Value Anomaly (Negative Check)
-                if let Some(val) = cell.value.as_float() {
-                    if val < 0.0 {
-                        findings.push(DataVerdict {
-                            violation: ViolationType::Anomaly,
-                            severity: 3, // Critical
-                            message: format!("Value Anomaly: Negative value detected ({}) in construction data.", val),
-                            technical_ref: format!("Row {}, Col {}", cell.row_idx, cell.col_idx),
-                            evidence_id: Some(cell.global_id.clone()),
-                        });
-                    }
-                }
-            }
         }
 
         findings
@@ -120,20 +77,23 @@ impl ValidationEngine {
 
             // Compare cells if columns align (Naive V1 check)
             let max_cols = std::cmp::min(row_p.cells.len(), row_s.cells.len());
-            
+
             for j in 0..max_cols {
                 let cell_p = &row_p.cells[j];
                 let cell_s = &row_s.cells[j];
 
                 // Compare logic: Float vs Float
-                if let (Some(val_p), Some(val_s)) = (cell_p.value.as_float(), cell_s.value.as_float()) {
+                if let (Some(val_p), Some(val_s)) =
+                    (cell_p.value.as_float(), cell_s.value.as_float())
+                {
                     let diff = (val_p - val_s).abs();
-                    if diff > 1.0 { // Epsilon 1.0 needed for cross-source too
+                    if diff > 1.0 {
+                        // Epsilon 1.0 needed for cross-source too
                         findings.push(DataVerdict {
                             violation: ViolationType::Mismatch,
                             severity: 3,
                             message: format!(
-                                "Cross-Source Mismatch: Source A ({}) vs Source B ({}) - Diff: {}", 
+                                "Cross-Source Mismatch: Source A ({}) vs Source B ({}) - Diff: {}",
                                 val_p, val_s, diff
                             ),
                             technical_ref: format!("Row {}, Col {}", i, j),

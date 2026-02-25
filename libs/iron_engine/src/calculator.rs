@@ -1,40 +1,37 @@
 //! Calculator: DataFrame → ProjectTruth
-//! 
+//!
 //! **Contract:**
 //! - Deterministic arithmetic only
 //! - No heuristics
 //! - No business logic
 //! - Fixed rules for status determination
 
+use crate::{EngineError, Result};
+use iron_table::{DeviationSummary, Financials, ProjectStatus, ProjectTruth, SystemMetrics};
 use polars::prelude::*;
-use iron_table::{
-    ProjectTruth, ProjectStatus, Financials, DeviationSummary, SystemMetrics
-};
-use crate::{Result, EngineError};
 
 /// Derive ProjectTruth from a validated DataFrame.
-/// 
+///
 /// **Rules:**
 /// - All calculations are deterministic
 /// - Status is computed by fixed thresholds
 /// - No AI/ML inference
-/// 
+///
 /// **Implementation Status:**
 /// - Financial aggregation: ✅ Implemented (exact column sums)
 /// - Deviation calculation: ✅ Implemented (budget vs actual)
 /// - Status determination: ✅ Implemented (hard thresholds: 5%, 15%)
-/// 
+///
 /// **Determinism:** Timestamp must be provided by caller to ensure idempotence.
 pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<ProjectTruth> {
-    
     use std::collections::HashMap;
 
     let financials = calculate_financials(df)?;
     let deviation = calculate_deviation(df)?;
     let status = determine_status(&deviation);
-    
+
     let mut lineage = HashMap::new();
-    
+
     // Collect lineage for key financial metrics
     if df.column("total_cost").is_ok() {
         lineage.insert("total_cost".to_string(), collect_lineage(df, "total_cost"));
@@ -53,10 +50,10 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
         project_name: "Consolidated Dashboard".to_string(),
         last_updated: timestamp,
         data_source: "iron_engine".to_string(),
-        
+
         project_status: status,
         status_reason: "Deterministic calculation".to_string(),
-        
+
         financials,
         deviation,
         top_risks: vec![],
@@ -77,7 +74,7 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
         raw_tables: &[], // TODO: In V2, we will pass TableTruth here for R02/R03
         comparison_pairs: &[], // Mission 034: Future R05 logic will fill this
     };
-    
+
     project_truth.verdicts = crate::ValidationEngine::verify(context);
 
     Ok(project_truth)
@@ -86,12 +83,12 @@ pub fn derive_project_truth(df: &DataFrame, timestamp: String) -> Result<Project
 fn collect_lineage(df: &DataFrame, value_col: &str) -> Vec<iron_table::LineageEntry> {
     use iron_table::LineageEntry;
     let mut entries = Vec::new();
-    
+
     let val_column = match df.column(value_col) {
         Ok(c) => c,
         Err(_) => return entries,
     };
-    
+
     let lin_col_name = format!("_lineage_{}", value_col);
     let lin_column = match df.column(&lin_col_name) {
         Ok(c) => c,
@@ -102,7 +99,7 @@ fn collect_lineage(df: &DataFrame, value_col: &str) -> Vec<iron_table::LineageEn
         Ok(v) => v,
         Err(_) => return entries,
     };
-    
+
     let lin_vals = match lin_column.str() {
         Ok(l) => l,
         Err(_) => return entries,
@@ -114,16 +111,16 @@ fn collect_lineage(df: &DataFrame, value_col: &str) -> Vec<iron_table::LineageEn
                 let parts: Vec<&str> = lin_id.split('_').collect();
                 if parts.len() >= 3 {
                     entries.push(LineageEntry {
-                        source_table: parts[0..parts.len()-2].join("_"),
-                        row_idx: parts[parts.len()-2].parse().unwrap_or(0),
-                        col_idx: parts[parts.len()-1].parse().unwrap_or(0),
+                        source_table: parts[0..parts.len() - 2].join("_"),
+                        row_idx: parts[parts.len() - 2].parse().unwrap_or(0),
+                        col_idx: parts[parts.len() - 1].parse().unwrap_or(0),
                         contribution: val,
                     });
                 }
             }
         }
     }
-    
+
     entries
 }
 
@@ -164,7 +161,10 @@ fn calculate_deviation(df: &DataFrame) -> Result<DeviationSummary> {
             .sum()
             .unwrap_or(0.0)
     } else {
-        return Ok(DeviationSummary { percentage: 0.0, absolute: 0.0 });
+        return Ok(DeviationSummary {
+            percentage: 0.0,
+            absolute: 0.0,
+        });
     };
 
     let actual_sum = if let Ok(col) = df.column("actual") {
@@ -173,7 +173,10 @@ fn calculate_deviation(df: &DataFrame) -> Result<DeviationSummary> {
             .sum()
             .unwrap_or(0.0)
     } else {
-        return Ok(DeviationSummary { percentage: 0.0, absolute: 0.0 });
+        return Ok(DeviationSummary {
+            percentage: 0.0,
+            absolute: 0.0,
+        });
     };
 
     let absolute = actual_sum - budget_sum;
@@ -213,31 +216,67 @@ mod tests {
     #[test]
     fn test_project_truth_status_thresholds() {
         // Test boundary at 5.0% (Safe/Warning threshold)
-        let just_safe = DeviationSummary { percentage: 4.9, absolute: 100.0 };
-        assert!(matches!(determine_status(&just_safe), ProjectStatus::Safe), 
-            "4.9% must be Safe");
+        let just_safe = DeviationSummary {
+            percentage: 4.9,
+            absolute: 100.0,
+        };
+        assert!(
+            matches!(determine_status(&just_safe), ProjectStatus::Safe),
+            "4.9% must be Safe"
+        );
 
-        let exactly_warning_start = DeviationSummary { percentage: 5.0, absolute: 100.0 };
-        assert!(matches!(determine_status(&exactly_warning_start), ProjectStatus::Warning), 
-            "5.0% must be Warning (inclusive lower bound)");
+        let exactly_warning_start = DeviationSummary {
+            percentage: 5.0,
+            absolute: 100.0,
+        };
+        assert!(
+            matches!(
+                determine_status(&exactly_warning_start),
+                ProjectStatus::Warning
+            ),
+            "5.0% must be Warning (inclusive lower bound)"
+        );
 
         // Test boundary at 15.0% (Warning/Critical threshold)
-        let just_warning = DeviationSummary { percentage: 14.9, absolute: 500.0 };
-        assert!(matches!(determine_status(&just_warning), ProjectStatus::Warning), 
-            "14.9% must be Warning");
+        let just_warning = DeviationSummary {
+            percentage: 14.9,
+            absolute: 500.0,
+        };
+        assert!(
+            matches!(determine_status(&just_warning), ProjectStatus::Warning),
+            "14.9% must be Warning"
+        );
 
-        let exactly_critical_start = DeviationSummary { percentage: 15.0, absolute: 500.0 };
-        assert!(matches!(determine_status(&exactly_critical_start), ProjectStatus::Critical), 
-            "15.0% must be Critical (inclusive lower bound)");
+        let exactly_critical_start = DeviationSummary {
+            percentage: 15.0,
+            absolute: 500.0,
+        };
+        assert!(
+            matches!(
+                determine_status(&exactly_critical_start),
+                ProjectStatus::Critical
+            ),
+            "15.0% must be Critical (inclusive lower bound)"
+        );
 
         // Test extremes
-        let zero_deviation = DeviationSummary { percentage: 0.0, absolute: 0.0 };
-        assert!(matches!(determine_status(&zero_deviation), ProjectStatus::Safe), 
-            "0.0% must be Safe");
+        let zero_deviation = DeviationSummary {
+            percentage: 0.0,
+            absolute: 0.0,
+        };
+        assert!(
+            matches!(determine_status(&zero_deviation), ProjectStatus::Safe),
+            "0.0% must be Safe"
+        );
 
-        let extreme_critical = DeviationSummary { percentage: 99.9, absolute: 10000.0 };
-        assert!(matches!(determine_status(&extreme_critical), ProjectStatus::Critical), 
-            "99.9% must be Critical");
+        let extreme_critical = DeviationSummary {
+            percentage: 99.9,
+            absolute: 10000.0,
+        };
+        assert!(
+            matches!(determine_status(&extreme_critical), ProjectStatus::Critical),
+            "99.9% must be Critical"
+        );
     }
 
     /// LAYER 2 TEST 2: Financial Aggregation (Exact Arithmetic)
@@ -247,11 +286,12 @@ mod tests {
         // Create a known DataFrame with exact financial data
         let total_cost_col = Series::new("total_cost".into(), &[1000.50, 2500.75, 1500.25]);
         let total_paid_col = Series::new("total_paid".into(), &[500.00, 2500.75, 1000.00]);
-        
+
         let df = DataFrame::new(vec![
             Column::from(total_cost_col),
             Column::from(total_paid_col),
-        ]).expect("DataFrame creation should succeed");
+        ])
+        .expect("DataFrame creation should succeed");
 
         // Expected values (calculated manually):
         // total_cost: 1000.50 + 2500.75 + 1500.25 = 5001.50
@@ -261,9 +301,18 @@ mod tests {
         let financials = calculate_financials(&df).expect("Financial calculation should succeed");
 
         // EXACT comparison - no tolerance
-        assert_eq!(financials.total_cost, 5001.50, "Total cost must be exactly 5001.50");
-        assert_eq!(financials.total_paid, 4000.75, "Total paid must be exactly 4000.75");
-        assert_eq!(financials.remaining, 1000.75, "Remaining must be exactly 1000.75");
+        assert_eq!(
+            financials.total_cost, 5001.50,
+            "Total cost must be exactly 5001.50"
+        );
+        assert_eq!(
+            financials.total_paid, 4000.75,
+            "Total paid must be exactly 4000.75"
+        );
+        assert_eq!(
+            financials.remaining, 1000.75,
+            "Remaining must be exactly 1000.75"
+        );
     }
 
     /// LAYER 2 TEST 3: Deviation Calculation (Exact Arithmetic)
@@ -273,11 +322,9 @@ mod tests {
         // Create DataFrame with known budget vs actual values
         let budget_col = Series::new("budget".into(), &[1000.0, 2000.0, 3000.0]);
         let actual_col = Series::new("actual".into(), &[1100.0, 1900.0, 3300.0]);
-        
-        let df = DataFrame::new(vec![
-            Column::from(budget_col),
-            Column::from(actual_col),
-        ]).expect("DataFrame creation should succeed");
+
+        let df = DataFrame::new(vec![Column::from(budget_col), Column::from(actual_col)])
+            .expect("DataFrame creation should succeed");
 
         // Expected calculation:
         // Total budget: 1000 + 2000 + 3000 = 6000
@@ -287,8 +334,14 @@ mod tests {
 
         let deviation = calculate_deviation(&df).expect("Deviation calculation should succeed");
 
-        assert_eq!(deviation.absolute, 300.0, "Absolute deviation must be exactly 300.0");
-        assert_eq!(deviation.percentage, 5.0, "Percentage deviation must be exactly 5.0%");
+        assert_eq!(
+            deviation.absolute, 300.0,
+            "Absolute deviation must be exactly 300.0"
+        );
+        assert_eq!(
+            deviation.percentage, 5.0,
+            "Percentage deviation must be exactly 5.0%"
+        );
     }
 
     /// LAYER 2 TEST 4: Deterministic Calculation (Idempotence)
@@ -298,11 +351,16 @@ mod tests {
         let df = create_test_dataframe();
         let timestamp = "2026-01-31T13:00:00Z".to_string();
 
-        let truth1 = derive_project_truth(&df, timestamp.clone()).expect("First derivation should succeed");
-        let truth2 = derive_project_truth(&df, timestamp.clone()).expect("Second derivation should succeed");
+        let truth1 =
+            derive_project_truth(&df, timestamp.clone()).expect("First derivation should succeed");
+        let truth2 =
+            derive_project_truth(&df, timestamp.clone()).expect("Second derivation should succeed");
 
         // Verify timestamp equality (deterministic)
-        assert_eq!(truth1.last_updated, truth2.last_updated, "Timestamps must be identical");
+        assert_eq!(
+            truth1.last_updated, truth2.last_updated,
+            "Timestamps must be identical"
+        );
 
         // Verify financial equality
         assert_eq!(truth1.financials.total_cost, truth2.financials.total_cost);
@@ -315,7 +373,7 @@ mod tests {
 
         // Verify status equality
         assert_eq!(truth1.project_status, truth2.project_status);
-        
+
         // Verify lineage equality
         assert_eq!(truth1.lineage.len(), truth2.lineage.len());
     }
@@ -326,10 +384,10 @@ mod tests {
         let total_paid_col = Series::new("total_paid".into(), &[900.0, 1800.0]);
         let budget_col = Series::new("budget".into(), &[1000.0, 2000.0]);
         let actual_col = Series::new("actual".into(), &[900.0, 1800.0]);
-        
+
         let lin_cost = Series::new("_lineage_total_cost".into(), &["test_0_2", "test_1_2"]);
         let lin_paid = Series::new("_lineage_total_paid".into(), &["test_0_3", "test_1_3"]);
-        
+
         DataFrame::new(vec![
             Column::from(total_cost_col),
             Column::from(total_paid_col),
@@ -337,6 +395,7 @@ mod tests {
             Column::from(actual_col),
             Column::from(lin_cost),
             Column::from(lin_paid),
-        ]).expect("Test DataFrame creation should succeed")
+        ])
+        .expect("Test DataFrame creation should succeed")
     }
 }

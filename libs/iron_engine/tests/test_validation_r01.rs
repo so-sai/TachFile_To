@@ -1,6 +1,6 @@
 use iron_engine::{
-    validation_engine::{ValidationEngine, ValidationContext},
-    ProjectTruth, Financials, ProjectStatus, DeviationSummary, SystemMetrics, ViolationType
+    validation_engine::{ValidationContext, ValidationEngine},
+    DeviationSummary, Financials, ProjectStatus, ProjectTruth, SystemMetrics, ViolationType,
 };
 use std::collections::HashMap;
 
@@ -17,10 +17,17 @@ fn mock_project_truth(cost: f64, paid: f64, remaining: f64) -> ProjectTruth {
             total_paid: paid,
             remaining: remaining,
         },
-        deviation: DeviationSummary { percentage: 0.0, absolute: 0.0 },
+        deviation: DeviationSummary {
+            percentage: 0.0,
+            absolute: 0.0,
+        },
         top_risks: vec![],
         pending_actions: vec![],
-        metrics: SystemMetrics { table_count: 0, row_count: 0, processing_time_ms: 0 },
+        metrics: SystemMetrics {
+            table_count: 0,
+            row_count: 0,
+            processing_time_ms: 0,
+        },
         lineage: HashMap::new(),
         verdicts: vec![],
     }
@@ -37,7 +44,7 @@ fn test_r01_exact_match() {
     };
 
     let verdicts = ValidationEngine::verify(context);
-    
+
     // Should have 0 violations
     assert!(verdicts.is_empty(), "Exact match should have 0 violations");
 }
@@ -47,7 +54,7 @@ fn test_r01_rounding_tolerance_clean() {
     // 1000 - 300 = 700.
     // Reported: 700.0000000001 (Floating point ghost)
     // Diff: 0.0000000001 < 1.0 Epsilon
-    
+
     let truth = mock_project_truth(1000.0, 300.0, 700.0000000001);
     let context = ValidationContext {
         project_truth: &truth,
@@ -56,8 +63,11 @@ fn test_r01_rounding_tolerance_clean() {
     };
 
     let verdicts = ValidationEngine::verify(context);
-    
-    assert!(verdicts.is_empty(), "Rounding error < Epsilon should be CLEAN");
+
+    assert!(
+        verdicts.is_empty(),
+        "Rounding error < Epsilon should be CLEAN"
+    );
 }
 
 #[test]
@@ -65,7 +75,7 @@ fn test_r01_rounding_tolerance_clean_large_epsilon() {
     // 1000 - 300 = 700.
     // Reported: 700.9 (Less than 1.0 diff)
     // Diff: 0.9 < 1.0 Epsilon
-    
+
     let truth = mock_project_truth(1000.0, 300.0, 700.9);
     let context = ValidationContext {
         project_truth: &truth,
@@ -74,8 +84,11 @@ fn test_r01_rounding_tolerance_clean_large_epsilon() {
     };
 
     let verdicts = ValidationEngine::verify(context);
-    
-    assert!(verdicts.is_empty(), "Diff 0.9 should be CLEAN under Epsilon 1.0");
+
+    assert!(
+        verdicts.is_empty(),
+        "Diff 0.9 should be CLEAN under Epsilon 1.0"
+    );
 }
 
 #[test]
@@ -83,7 +96,7 @@ fn test_r01_critical_mismatch() {
     // 1000 - 300 = 700.
     // Reported: 650.0 (Manual tampering)
     // Diff: 50.0 > 1.0 Epsilon
-    
+
     let truth = mock_project_truth(1000.0, 300.0, 650.0);
     let context = ValidationContext {
         project_truth: &truth,
@@ -92,11 +105,17 @@ fn test_r01_critical_mismatch() {
     };
 
     let verdicts = ValidationEngine::verify(context);
-    
+
     assert_eq!(verdicts.len(), 1, "Must catch 1 critical violation");
-    
+
     let v = &verdicts[0];
-    assert!(matches!(v.violation, ViolationType::MathError), "Violation must be MathError");
+    assert!(
+        matches!(v.violation, ViolationType::MathError),
+        "Violation must be MathError"
+    );
     assert_eq!(v.severity, 3, "Severity must be Critical (3)");
-    assert!(v.message.contains("Calculated Remaining (700)"), "Message must specify calculated truth");
+    assert!(
+        v.message.contains("Calculated Remaining (700)"),
+        "Message must specify calculated truth"
+    );
 }

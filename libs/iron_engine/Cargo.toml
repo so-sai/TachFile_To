@@ -15,5 +15,6 @@ serde_json = "1.0"
 thiserror = "2.0"
 chrono = "0.4"
 iron_adapter = { path = "../iron_adapter" }
+regex = "1.12.3"
 
 [dev-dependencies]
