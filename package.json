@@ -1,0 +1,9 @@
+{
+    "name": "tachfileto-workspace",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "npm run tauri dev --prefix ui",
+        "tauri": "cd ui && npm run tauri --"
+    }
+}

@@ -1,4 +1,4 @@
-use super::report::{Delta, DeltaType, DiffReport};
+use super::report::{Delta, DeltaType};
 use crate::ast::node::{NumericIndexEntry, StableId};
 use std::collections::HashMap;
 
@@ -89,7 +89,7 @@ impl TableDiffer {
         }
 
         // Find Added cells (in new_map but not in old_map)
-        for (key, _) in &new_map {
+        for key in new_map.keys() {
             if !old_map.contains_key(key) {
                 let location = format!(
                     "Section {} > Table {} > Row-Hash {:x}, Col {} [NEW]",

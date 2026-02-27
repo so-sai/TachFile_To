@@ -48,17 +48,15 @@ impl ColumnBoundaryDetector {
                     in_gap = true;
                     gap_start = x;
                 }
-            } else {
-                if in_gap {
-                    let gap_end = x;
-                    let gap_width = gap_end - gap_start;
-                    // If the gap is wide enough to be a column separator
-                    // (heuristic: > 5 pixels, depending on scale)
-                    if gap_width > 5 && gap_start > 0 {
-                        boundaries.push((gap_start + gap_end) as f64 / 2.0); // Midpoint of gap
-                    }
-                    in_gap = false;
+            } else if in_gap {
+                let gap_end = x;
+                let gap_width = gap_end - gap_start;
+                // If the gap is wide enough to be a column separator
+                // (heuristic: > 5 pixels, depending on scale)
+                if gap_width > 5 && gap_start > 0 {
+                    boundaries.push((gap_start + gap_end) as f64 / 2.0); // Midpoint of gap
                 }
+                in_gap = false;
             }
         }
 
@@ -99,7 +97,7 @@ impl RowCohesionMapper {
                 {
                     let child_text = child_col.raw_text.trim();
                     if !child_text.is_empty() {
-                        parent_col.raw_text.push_str(" ");
+                        parent_col.raw_text.push(' ');
                         parent_col.raw_text.push_str(child_text);
                     }
                 }

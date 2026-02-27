@@ -6,13 +6,15 @@
 //! **Algorithm complexity**: O(n) via HashMap join — no quadratic comparisons.
 //! **Stability guarantee**: Uses StableId (content hash), NOT physical positions.
 
+#![allow(unused_imports)]
+
 pub mod heading_diff;
 pub mod report;
 pub mod section_diff;
 pub mod table_diff;
 
 pub use heading_diff::{HeadingDiffer, HeadingEntry};
-pub use report::{Delta, DeltaType, DiffReport, DiffSummary};
+pub use report::{Delta, DeltaType, DiffReport};
 pub use section_diff::SectionDiffer;
 pub use table_diff::TableDiffer;
 

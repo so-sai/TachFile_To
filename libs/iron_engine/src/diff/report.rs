@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::ast::node::StableId;
 use serde::{Deserialize, Serialize};
 
@@ -36,43 +37,4 @@ pub struct DiffReport {
 impl DiffReport {
     pub fn new(deltas: Vec<Delta>) -> Self {
         Self { deltas }
-    }
-
-    /// Derived from state — no manual `is_identical` field.
-    /// Prevents the inconsistency risk of a stale bool flag.
-    pub fn is_identical(&self) -> bool {
-        self.deltas.is_empty()
-    }
-
-    /// Counts deltas by category for a quick summary.
-    pub fn summary(&self) -> DiffSummary {
-        let mut added = 0usize;
-        let mut removed = 0usize;
-        let mut value_mismatches = 0usize;
-        let mut structural = 0usize;
-
-        for d in &self.deltas {
-            match &d.delta_type {
-                DeltaType::Added => added += 1,
-                DeltaType::Removed => removed += 1,
-                DeltaType::ValueMismatch { .. } => value_mismatches += 1,
-                DeltaType::StructuralChange { .. } => structural += 1,
-            }
-        }
-
-        DiffSummary {
-            added,
-            removed,
-            value_mismatches,
-            structural,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiffSummary {
-    pub added: usize,
-    pub removed: usize,
-    pub value_mismatches: usize,
-    pub structural: usize,
-}
+    }}

@@ -1,6 +1,6 @@
 use super::report::{Delta, DeltaType};
 use crate::ast::node::StableId;
-use std::collections::HashSet;
+
 
 /// Heading-level diff using StableId set comparison.
 ///
@@ -56,7 +56,7 @@ impl HeadingDiffer {
         }
 
         // Find newly added headings
-        for (&id, _) in &new_map {
+        for &id in new_map.keys() {
             if !old_map.contains_key(&id) {
                 deltas.push(Delta {
                     node_id: StableId(id),

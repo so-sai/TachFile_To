@@ -1,130 +1,82 @@
-# TachFileTo V1.0.0 🛡️
+# TachFileTo
 
-**The Forensic Workstation — Engine Kiểm Tra Dữ Liệu Hồ Sơ Xây Dựng Việt Nam**
+**Offline Large Document Processor for AI & Version Comparison**
 
-*Trích xuất sự thật từ sự hỗn loạn — Niêm phong dữ liệu bằng SHA-256.*
-
----
-
-### 🚀 Vì sao TachFileTo tồn tại
-
-TachFileTo sinh ra từ thực tế rằng các phần mềm hiện có thường sụp đổ khi xử lý hồ sơ xây dựng lớn, nặng, nhiều file scan và tồn tại lâu dài. Chúng chậm, mù dữ liệu, chuyển đổi không bền, sinh file rác và không có trí nhớ hệ thống giữa các lần xử lý. 
-
-TachFileTo được tạo ra để giải quyết **hạ tầng xử lý dữ liệu**, không phải để phán đoán nghiệp vụ.
+> Process massive PDF/DOCX files. Clean them for AI. Compare versions with precision. No cloud. No lag.
 
 ---
 
-## 🎯 Mục Đích Cốt Lõi
+## The Problem
 
-TachFileTo là một **engine xử lý & kiểm tra dữ liệu hồ sơ xây dựng** ở mức **kỹ thuật thuần túy**.
+Engineers, accountants, and lawyers work with documents that standard tools cannot handle:
 
-Nó trả lời **một câu hỏi duy nhất**:
+- Files **over 50MB** that crash viewers and editors.
+- **Scanned documents** that cannot be searched or read by AI.
+- Raw copy-paste into AI produces **garbage** — broken tables, corrupt headers.
+- Comparing two contract versions with traditional diff tools gives **cascade false positives**.
 
-> *“Dữ liệu trong các file PDF / Excel này thực sự nói gì, và có nhất quán với nhau hay không?”*
-
-TachFileTo **không ra quyết định**, **không phê duyệt**, **không thay thế con người**.
-
----
-
-## 🧩 Phạm Vi Vấn Đề Giải Quyết
-
-### 1. Xử lý dữ liệu thô từ hồ sơ hiện trường
-
-* Trích xuất bảng từ PDF (kể cả file scan, file lớn >50MB).
-* Đọc & chuẩn hóa Excel về **một cấu trúc dữ liệu thống nhất**.
-* Tự động phát hiện và chuyển đổi font tiếng Việt (TCVN3, VNI → Unicode).
-* Chuẩn hóa tiêu đề, cột, đơn vị theo ngữ cảnh hồ sơ xây dựng Việt Nam.
-
-👉 **Đầu ra:** dữ liệu sạch, có cấu trúc, có thể kiểm chứng.
+TachFileTo solves all four. Entirely offline.
 
 ---
 
-### 2. Kiểm tra tính nhất quán & phát hiện sai lệch dữ liệu
+## What It Does
 
-* So sánh khối lượng giữa các file / giai đoạn.
-* Phát hiện chênh lệch bất thường, thiếu dòng, trùng dòng, sai làm tròn.
-* Áp dụng **quy tắc tính toán xác định (deterministic rules)** — không suy đoán.
-* Gắn bằng chứng trực quan: mỗi dòng dữ liệu có thể truy ngược về **ảnh crop chính xác từ tài liệu gốc**.
+### Mode 1 — Clean (Document Ingestion)
 
-👉 **Đầu ra:** danh sách *facts & discrepancies*, không phải kết luận nghiệp vụ.
+Converts large PDF or DOCX files into clean, structured output:
 
----
+- **Auto-OCR**: Detects whether a document has a text layer; applies OCR automatically if not.
+- **Streaming processing**: Handles files page-by-page. Memory usage does not grow with file size.
+- **Three export formats**: AI-ready Markdown, structured DOCX, searchable PDF.
+- **One-click Copy for AI**: Optimized prompt-ready output.
 
-### 3. Trình bày dữ liệu cho người chịu trách nhiệm
+### Mode 2 — Compare (Version Delta)
 
-* Giao diện **Ưu tiên Người điều hành (Founder/Engineer-first)**: ưu tiên quan sát sự thật, không diễn giải.
-* Từ bảng dữ liệu chi tiết → tín hiệu kỹ thuật:
-  **Khớp (Consistent) / Sai lệch (Inconsistent) / Cần kiểm tra (Requires Review)**
-* Truy xuất 1-click: từ dữ liệu → file gốc → hình ảnh bằng chứng.
+Compares two versions of a document with deterministic, structural precision:
 
-👉 **Giao diện chỉ hiển thị — không “suy nghĩ” thay người dùng.**
-
----
-
-## 🧠 Nguyên Tắc Thiết Kế (Iron Core)
-
-* **Xác định trên Thông minh (Determinism over Intelligence)**
-  Cùng đầu vào → luôn cùng đầu ra. Không AI phán đoán mơ hồ.
-
-* **Giao diện không tính toán (UI Never Thinks)**
-  Mọi logic nằm trong Core (Rust). Frontend không chứa nghiệp vụ.
-
-* **Hiệu năng là tính năng (Performance is a Feature)**
-  File lớn, nhiều trang, nhiều bảng là trạng thái bình thường. Không spinner giả dối.
-
-* **Thực tế Việt Nam là số 1 (Vietnamese Reality First)**
-  Thuật ngữ, cách trình bày, đặc thù hồ sơ Việt Nam là ưu tiên — *nhưng không thay thế chuẩn mực kỹ thuật*.
+- **StableId anchoring**: Table rows and headings are identity-anchored. A row inserted in the middle does not trigger cascade false alarms.
+- **Numerical Drift detection**: Reports value changes ≥ configurable epsilon (default: 1.0).
+- **DiffReport**: Exportable summary in JSON or PDF.
+- **O(n) performance**: Comparison time scales linearly, not exponentially.
 
 ---
 
-## 🏗️ Nguyên Tắc Kiến Trúc
+## Technology
 
-* **Core Deterministic (Rust)**
-  Một nguồn sự thật duy nhất cho logic xử lý.
-
-* **Desktop-first, Offline-first**
-  Chạy độc lập trên Windows. Ưu tiên tốc độ và quyền riêng tư.
-
-* **Hợp đồng dữ liệu chặt chẽ (Strict Data Contracts)**
-  Mọi module giao tiếp qua contract rõ ràng, có phiên bản.
+| Layer     | Technology                                    |
+|-----------|-----------------------------------------------|
+| Engine    | Pure Rust (Edition 2024), `iron_engine` crate |
+| Shell     | Tauri 2.0 (Windows / macOS)                   |
+| Interface | Svelte 5 + Tailwind v4                        |
+| OCR       | Tesseract (offline, Vietnamese-optimized)     |
 
 ---
 
-## 📖 Bản Đồ Tài Liệu
+## Canonical Documentation
 
-### 📂 Cấu trúc dự án (IIP v1.0)
-
-* Hiến pháp dự án: `.project-context/PROJECT_PROMPT.md`
-* Quy tắc AI: `.project-context/AGENT_RULES.md`
-* Nhiệm vụ hiện tại: `.project-context/ACTIVE_MISSION.md`
-* Bài học kinh nghiệm: `LESSONS.md`
-* Tài liệu lưu trữ: `.project-context/ARCHIVE/`
-
-### 📋 Thông số & Hướng dẫn (Specifications)
-*Thư mục: `docs/specs/`*
-
-* **Master Dashboard:** [MASTER_V3.0_DASHBOARD.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/MASTER_V3.0_DASHBOARD.md)
-* **Giao thức IPC:** [IPC_PROTOCOL.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/IPC_PROTOCOL.md)
-* **Hợp đồng dữ liệu:** [TRUTH_CONTRACT_V1.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/TRUTH_CONTRACT_V1.md)
-* **Hệ thống thiết kế UI:** [UI_DESIGN_SYSTEM.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/UI_DESIGN_SYSTEM.md)
-* **Hướng dẫn vận hành:** [GUIDE.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/GUIDE.md)
-* **Lịch sử thay đổi:** [CHANGELOG.md](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/specs/CHANGELOG.md)
-
-### 📂 Lưu trữ & Lịch sử (Archive)
-*Thư mục: `docs/archive/`*
-
-* **Lịch sử Mission:** [missions/](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/archive/missions/) (Các mốc từ 000 đến 015)
-* **Nghiên cứu & Nháp:** [research/](file:///e:/DEV/elite_9_VN-ecosystem/app-tool-TachFileTo/docs/archive/research/) (Các bản nháp PyO3, R&D cũ)
+| Document | Role |
+|---|---|
+| [PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) | What V1.0 builds and what it does not |
+| [SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Technical contracts and invariants |
+| [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | How to build and contribute |
 
 ---
 
-## ⚠️ Giới Hạn Trách Nhiệm (Boundary)
+## What It Is Not
 
-TachFileTo:
+- Not a cloud service — runs entirely offline
+- Not a document editor — output is structured data, not a formatted file
+- Not a legal compliance engine — no audit trails, no regulatory alignment
+- Not an AI model — it prepares documents for AI, it is not AI itself
 
-* ❌ Không phê duyệt thanh toán
-* ❌ Không đưa ra kết luận pháp lý hay nghiệp vụ
-* ❌ Không thay thế kỹ sư, QS, hay chủ đầu tư
+---
 
-✅ Nó **chỉ làm một việc**:
-**Phơi bày dữ liệu và sự nhất quán của chúng một cách chính xác và có thể kiểm chứng.**
+## Status
+
+**Core Engine**: `v1.0.0-core+` ✅ — tagged, tested, API-locked.
+**UI**: In progress. Not yet production-ready. CLI/engine testing only.
+**Phase**: Formalizing V1.0 Identity.
+
+---
+
+*Built for professionals working with large technical documents. No fluff. No cloud dependency.*

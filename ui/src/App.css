@@ -1,80 +1,158 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
+@theme {
+  /* Typography — elite-ui-rust skill: Inter for UI, JetBrains Mono for data */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  /* Color Palette — elite-ui-rust AEC Design Constitution */
+  --color-action:    #2563EB; /* Action Blue */
+  --color-action-50: #EFF6FF;
+  --color-action-hover: #1D4ED8;
+  --color-warn:      #F59E0B; /* Alert Orange */
+  --color-success:   #10B981; /* Emerald */
+  --color-error:     #EF4444; /* Red */
+
+  /* Neutral scale */
+  --color-base:      #F9FAFB; /* App background */
+  --color-surface:   #FFFFFF;
+  --color-border:    #E5E7EB; /* Forensic Gray border */
+  --color-border-2:  #D1D5DB;
+  --color-text:      #111827; /* Near-black */
+  --color-text-2:    #6B7280; /* Muted */
+  --color-text-3:    #9CA3AF; /* Very muted */
+
+  /* Layout — fixed dimensions per elite-ui-rust AEC Constitution */
+  --sidebar-w: 260px;
+  --header-h:  56px;
+  --statusbar-h: 40px;
 }
 
-/* ============================================
-   ENTERPRISE SCROLLBAR V1.2 ("GROK" STANDARD)
-   Cross-browser native scrollbar styling
-   ============================================ */
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-/* Container class for Virtual Lists */
-.enterprise-scroll-container {
-  overflow-y: auto;
-  overflow-x: auto;
-  contain: strict; /* Browser rendering optimization */
-  
-  /* Firefox Standard */
-  scrollbar-width: auto;
-  scrollbar-color: #555555 #F0F0F0;
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden; /* Rigid frame — no layout shift */
+    scrollbar-gutter: stable;
+    font-family: var(--font-sans);
+    background-color: var(--color-base);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scoped scrollbar — no global pollution (elite-ui-rust skill) */
+  .scrollable {
+    &::-webkit-scrollbar { width: 5px; height: 5px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 2px; }
+    &::-webkit-scrollbar-thumb:hover { background: var(--color-text-3); }
+  }
+
+  /* Monospace for all numeric/data values */
+  .mono { font-family: var(--font-mono); }
 }
 
-/* Webkit (Chrome, Edge, Tauri/WebView2) */
-.enterprise-scroll-container::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
-}
+/* ─── Layout Utilities ───────────────────────────────────────────────────── */
+@layer utilities {
+  .app-grid {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    grid-template-rows: var(--header-h) 1fr var(--statusbar-h);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
 
-.enterprise-scroll-container::-webkit-scrollbar-track {
-  background: #F0F0F0;
-  border-left: 1px solid #E0E0E0;
-}
+  /* Hairline border — consistent 1px throughout */
+  .border-hair {
+    border: 1px solid var(--color-border);
+  }
 
-.enterprise-scroll-container::-webkit-scrollbar-thumb {
-  background-color: #555555;
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 0px; /* Enterprise: Square = Precision */
-}
+  /* Pill badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
-.enterprise-scroll-container::-webkit-scrollbar-thumb:hover {
-  background-color: #333333;
-}
+  /* Ghost button — secondary action */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-2);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
 
-.enterprise-scroll-container::-webkit-scrollbar-corner {
-  background: #E0E0E0;
-}
+    &:hover {
+      border-color: var(--color-border-2);
+      color: var(--color-text);
+      background: var(--color-base);
+    }
 
-/* Dark Mode Variant */
-.dark .enterprise-scroll-container {
-  scrollbar-color: #52525b #18181b;
-}
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
 
-.dark .enterprise-scroll-container::-webkit-scrollbar-track {
-  background: #18181b;
-  border-left: 1px solid #27272a;
-}
+  /* Primary CTA button */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    background: var(--color-action);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
 
-.dark .enterprise-scroll-container::-webkit-scrollbar-thumb {
-  background-color: #52525b;
-}
+    &:hover { background: var(--color-action-hover); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
 
-.dark .enterprise-scroll-container::-webkit-scrollbar-thumb:hover {
-  background-color: #71717a;
-}
+  /* Section heading label */
+  .section-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-3);
+  }
 
-.dark .enterprise-scroll-container::-webkit-scrollbar-corner {
-  background: #27272a;
+  /* Progress bar track */
+  .progress-track {
+    width: 100%;
+    height: 3px;
+    background: var(--color-border);
+    overflow: hidden;
+
+    & .progress-fill {
+      height: 100%;
+      background: var(--color-action);
+      transition: width 0.3s ease;
+    }
+  }
 }

@@ -55,3 +55,6 @@ Cargo.lock.bk
 
 # --- EXCEPTIONS ---
 !libs/elite_pdf/vendor/*.lib 
+
+# Legacy Assets
+_REUSABLE_ASSETS/

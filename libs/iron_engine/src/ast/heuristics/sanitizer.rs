@@ -22,10 +22,8 @@ impl NumericSanitizer {
 
         // 2. Fix common OCR mistakes
         text = text
-            .replace('l', "1")
-            .replace('I', "1")
-            .replace('O', "0")
-            .replace('o', "0")
+            .replace(['l', 'I'], "1")
+            .replace(['O', 'o'], "0")
             .replace('S', "5");
 
         // 3. Keep only digits, periods, commas, and spaces
